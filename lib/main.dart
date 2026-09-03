@@ -3,7 +3,15 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'core/theme/app_colors.dart';
 import 'core/widgets/app_menu_drawer.dart';
-import 'features/cacambas/presentation/pages/cacambas_page.dart';
+//import 'features/cacambas/presentation/pages/cacambas_page.dart';
+
+//import 'features/admin/presentation/pages/painel_admin_page.dart';
+
+//import 'features/admin/presentation/pages/cadastrar_cacamba_page.dart';
+
+//import 'features/admin/presentation/pages/minhas_cacambas_page.dart';
+
+import 'features/admin/presentation/pages/gestao_pedidos_page.dart';
 
 void main() {
   runApp(const CollectApp());
@@ -21,7 +29,7 @@ class CollectApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.white,
         textTheme: GoogleFonts.poppinsTextTheme(),
       ),
-      home: const CacambasPage(),
+      home: const GestaoPedidosPage(),
     );
   }
 }
