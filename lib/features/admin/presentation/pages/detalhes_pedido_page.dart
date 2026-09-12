@@ -30,18 +30,12 @@ class _DetalhesPedidoPageState extends State<DetalhesPedidoPage> {
                 delegate: SliverChildListDelegate([
                   const Text(
                     'Detalhes do Pedido',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 4),
                   const Text(
                     'Informações completas de entrega e pagamento',
-                    style: TextStyle(
-                      color: Colors.black54,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: Colors.black54, fontSize: 13),
                   ),
                   const SizedBox(height: 28),
 
@@ -62,14 +56,14 @@ class _DetalhesPedidoPageState extends State<DetalhesPedidoPage> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed:
-                          deliveryConfirmed ? null : _confirmDelivery,
+                      onPressed: deliveryConfirmed ? null : _confirmDelivery,
                       style: ElevatedButton.styleFrom(
                         elevation: 0,
                         backgroundColor: AppColors.green,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor:
-                            AppColors.green.withValues(alpha: 0.5),
+                        disabledBackgroundColor: AppColors.green.withValues(
+                          alpha: 0.5,
+                        ),
                         disabledForegroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -79,9 +73,7 @@ class _DetalhesPedidoPageState extends State<DetalhesPedidoPage> {
                         deliveryConfirmed
                             ? 'Entrega Confirmada'
                             : 'Confirmar Entrega da Caçamba',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),
@@ -145,28 +137,20 @@ class _AdminHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppColors.border),
-        ),
+        border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         children: [
           const Expanded(child: AppLogo()),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 11,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
             decoration: BoxDecoration(
               color: const Color(0xFFEAF6E8),
               borderRadius: BorderRadius.circular(18),
             ),
             child: const Row(
               children: [
-                CircleAvatar(
-                  radius: 4,
-                  backgroundColor: AppColors.green,
-                ),
+                CircleAvatar(radius: 4, backgroundColor: AppColors.green),
                 SizedBox(width: 6),
                 Text(
                   'Painel Admin',
@@ -217,10 +201,7 @@ class _StatusCard extends StatelessWidget {
         children: [
           const Text(
             'Status da Locação: #COL-2024-1587',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 18),
           const _TimelineItem(
@@ -287,10 +268,7 @@ class _TimelineItem extends StatelessWidget {
                 ),
                 if (showLine)
                   Expanded(
-                    child: Container(
-                      width: 2,
-                      color: const Color(0xFFE1E1E1),
-                    ),
+                    child: Container(width: 2, color: const Color(0xFFE1E1E1)),
                   ),
               ],
             ),
@@ -313,10 +291,7 @@ class _TimelineItem extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Colors.black54,
-                      fontSize: 11,
-                    ),
+                    style: const TextStyle(color: Colors.black54, fontSize: 11),
                   ),
                 ],
               ),
@@ -351,18 +326,12 @@ class _CustomerCard extends StatelessWidget {
           const SizedBox(height: 14),
           const Text(
             'Telefone: (11) 98888-7777',
-            style: TextStyle(
-              color: Colors.black54,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: Colors.black54, fontSize: 12),
           ),
           const SizedBox(height: 14),
           const Text(
             'Endereço: Av. Paulista, 1000 - Bela Vista, São Paulo - SP',
-            style: TextStyle(
-              color: Colors.black54,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: Colors.black54, fontSize: 12),
           ),
           const SizedBox(height: 14),
           ClipRRect(
@@ -463,8 +432,7 @@ class _InformationRow extends StatelessWidget {
             style: TextStyle(
               color: highlighted ? Colors.black : Colors.black54,
               fontSize: highlighted ? 15 : 13,
-              fontWeight:
-                  highlighted ? FontWeight.w800 : FontWeight.normal,
+              fontWeight: highlighted ? FontWeight.w800 : FontWeight.normal,
             ),
           ),
         ),
@@ -492,10 +460,7 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 17,
-        fontWeight: FontWeight.w800,
-      ),
+      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
     );
   }
 }

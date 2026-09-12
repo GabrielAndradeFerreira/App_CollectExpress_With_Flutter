@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../../../../core/widgets/app_menu_drawer.dart';
-
 import 'detalhes_pedido_page.dart';
+
 enum AdminOrderStatus { novo, emAndamento, concluido }
 
 class AdminOrder {
@@ -123,6 +123,7 @@ class _GestaoPedidosPageState extends State<GestaoPedidosPage> {
             ),
             if (filteredOrders.isEmpty)
               const SliverFillRemaining(
+                hasScrollBody: false,
                 child: Center(
                   child: Text(
                     'Nenhum pedido encontrado.',
@@ -141,6 +142,7 @@ class _GestaoPedidosPageState extends State<GestaoPedidosPage> {
 
                     return _OrderCard(
                       order: order,
+                      onTap: () => _openOrderDetails(order),
                       onAccept: () => _changeStatus(
                         order,
                         AdminOrderStatus.emAndamento,
@@ -182,9 +184,16 @@ class _GestaoPedidosPageState extends State<GestaoPedidosPage> {
         fontWeight: FontWeight.w600,
       ),
       onSelected: (_) {
-        setState(() => selectedFilter = status);
+        setState(() {
+          selectedFilter = status;
+        });
       },
     );
+  }
+
+  void _openOrderDetails(AdminOrder order) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const DetalhesPedidoPage()));
   }
 
   void _changeStatus(
@@ -205,17 +214,17 @@ class _GestaoPedidosPageState extends State<GestaoPedidosPage> {
   Future<void> _rejectOrder(AdminOrder order) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Recusar pedido'),
           content: Text('Deseja recusar o pedido ${order.number}?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Cancelar'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(dialogContext, true),
               child: const Text('Recusar', style: TextStyle(color: Colors.red)),
             ),
           ],
@@ -228,6 +237,13 @@ class _GestaoPedidosPageState extends State<GestaoPedidosPage> {
     setState(() {
       orders.remove(order);
     });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Pedido recusado.'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   void _showHistory(AdminOrder order) {
@@ -235,28 +251,30 @@ class _GestaoPedidosPageState extends State<GestaoPedidosPage> {
       context: context,
       showDragHandle: true,
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Histórico ${order.number}',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Histórico ${order.number}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              const Text('✓ Pedido criado'),
-              const SizedBox(height: 10),
-              const Text('✓ Pagamento confirmado'),
-              const SizedBox(height: 10),
-              const Text('✓ Caçamba entregue'),
-              const SizedBox(height: 10),
-              const Text('✓ Locação concluída'),
-            ],
+                const SizedBox(height: 18),
+                const Text('✓ Pedido criado'),
+                const SizedBox(height: 10),
+                const Text('✓ Pagamento confirmado'),
+                const SizedBox(height: 10),
+                const Text('✓ Caçamba entregue'),
+                const SizedBox(height: 10),
+                const Text('✓ Locação concluída'),
+              ],
+            ),
           ),
         );
       },
@@ -300,9 +318,11 @@ class _AdminHeader extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Builder(
-            builder: (context) {
+            builder: (scaffoldContext) {
               return IconButton(
-                onPressed: () => Scaffold.of(context).openEndDrawer(),
+                onPressed: () {
+                  Scaffold.of(scaffoldContext).openEndDrawer();
+                },
                 style: IconButton.styleFrom(
                   backgroundColor: AppColors.lightGray,
                   minimumSize: const Size(46, 46),
@@ -319,6 +339,7 @@ class _AdminHeader extends StatelessWidget {
 
 class _OrderCard extends StatelessWidget {
   final AdminOrder order;
+  final VoidCallback onTap;
   final VoidCallback onAccept;
   final VoidCallback onReject;
   final VoidCallback onDelivered;
@@ -326,6 +347,7 @@ class _OrderCard extends StatelessWidget {
 
   const _OrderCard({
     required this.order,
+    required this.onTap,
     required this.onAccept,
     required this.onReject,
     required this.onDelivered,
@@ -334,50 +356,57 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: AppColors.border),
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  order.number,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      order.number,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
-                ),
+                  _StatusBadge(status: order.status),
+                ],
               ),
-              _StatusBadge(status: order.status),
+              const SizedBox(height: 16),
+              Text(
+                'Cliente: ${order.customer}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                'Equipamento: ${order.equipment}',
+                style: const TextStyle(color: Colors.black54, fontSize: 12),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                'Endereço: ${order.address}',
+                style: const TextStyle(color: Colors.black54, fontSize: 12),
+              ),
+              const SizedBox(height: 18),
+              const Divider(color: AppColors.border),
+              const SizedBox(height: 10),
+              _buildActions(),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Cliente: ${order.customer}',
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            'Equipamento: ${order.equipment}',
-            style: const TextStyle(color: Colors.black54, fontSize: 12),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            'Endereço: ${order.address}',
-            style: const TextStyle(color: Colors.black54, fontSize: 12),
-          ),
-          const SizedBox(height: 18),
-          const Divider(color: AppColors.border),
-          const SizedBox(height: 10),
-          _buildActions(),
-        ],
+        ),
       ),
     );
   }
@@ -394,8 +423,14 @@ class _OrderCard extends StatelessWidget {
                   foregroundColor: Colors.red,
                   side: const BorderSide(color: Colors.red),
                   minimumSize: const Size.fromHeight(46),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9),
+                  ),
                 ),
-                child: const Text('Recusar'),
+                child: const Text(
+                  'Recusar',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -407,8 +442,14 @@ class _OrderCard extends StatelessWidget {
                   backgroundColor: AppColors.green,
                   foregroundColor: Colors.white,
                   minimumSize: const Size.fromHeight(46),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9),
+                  ),
                 ),
-                child: const Text('Aceitar'),
+                child: const Text(
+                  'Aceitar',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
           ],
@@ -424,8 +465,14 @@ class _OrderCard extends StatelessWidget {
               backgroundColor: AppColors.green,
               foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(9),
+              ),
             ),
-            child: const Text('Marcar como Entregue'),
+            child: const Text(
+              'Marcar como Entregue',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         );
 
@@ -438,8 +485,14 @@ class _OrderCard extends StatelessWidget {
               backgroundColor: AppColors.lightGray,
               foregroundColor: Colors.black54,
               minimumSize: const Size.fromHeight(46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(9),
+              ),
             ),
-            child: const Text('Visualizar Histórico Completo'),
+            child: const Text(
+              'Visualizar Histórico Completo',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         );
     }
@@ -453,9 +506,9 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    late String label;
-    late Color color;
-    late Color background;
+    late final String label;
+    late final Color color;
+    late final Color background;
 
     switch (status) {
       case AdminOrderStatus.novo:
@@ -502,7 +555,12 @@ class _AdminBottomNavigation extends StatelessWidget {
       type: BottomNavigationBarType.fixed,
       selectedItemColor: AppColors.green,
       unselectedItemColor: Colors.black54,
-      onTap: (_) {},
+
+      // BottomNavigationBar envia o índice selecionado.
+      onTap: (index) {
+        // A navegação principal será implementada posteriormente.
+      },
+
       items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),

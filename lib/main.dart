@@ -11,7 +11,9 @@ import 'core/widgets/app_menu_drawer.dart';
 
 //import 'features/admin/presentation/pages/minhas_cacambas_page.dart';
 
-import 'features/admin/presentation/pages/gestao_pedidos_page.dart';
+//import 'features/admin/presentation/pages/gestao_pedidos_page.dart';
+
+import 'features/admin/presentation/pages/perfil_loja_page.dart';
 
 void main() {
   runApp(const CollectApp());
@@ -29,7 +31,7 @@ class CollectApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.white,
         textTheme: GoogleFonts.poppinsTextTheme(),
       ),
-      home: const GestaoPedidosPage(),
+      home: const PerfilLojaPage(),
     );
   }
 }
