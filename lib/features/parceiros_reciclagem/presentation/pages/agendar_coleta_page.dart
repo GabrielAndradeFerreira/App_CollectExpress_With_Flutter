@@ -374,9 +374,7 @@ class _AgendarColetaPageState extends State<AgendarColetaPage> {
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => ColetasAgendadasPage(
-          newCollection: collection,
-        ),
+        builder: (_) => ColetasAgendadasPage(newCollection: collection),
       ),
     );
   }

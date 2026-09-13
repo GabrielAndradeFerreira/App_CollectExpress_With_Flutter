@@ -29,10 +29,7 @@ class ScheduledCollection {
 class ColetasAgendadasPage extends StatefulWidget {
   final ScheduledCollection newCollection;
 
-  const ColetasAgendadasPage({
-    super.key,
-    required this.newCollection,
-  });
+  const ColetasAgendadasPage({super.key, required this.newCollection});
 
   @override
   State<ColetasAgendadasPage> createState() => _ColetasAgendadasPageState();
@@ -70,8 +67,7 @@ class _ColetasAgendadasPageState extends State<ColetasAgendadasPage> {
   }
 
   List<ScheduledCollection> get filteredCollections {
-    final showCompleted =
-        selectedFilter == CollectionFilter.concluidas;
+    final showCompleted = selectedFilter == CollectionFilter.concluidas;
 
     return collections
         .where((collection) => collection.completed == showCompleted)
@@ -127,8 +123,7 @@ class _ColetasAgendadasPageState extends State<ColetasAgendadasPage> {
                 padding: const EdgeInsets.fromLTRB(18, 0, 18, 80),
                 sliver: SliverList.separated(
                   itemCount: filteredCollections.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: 14),
+                  separatorBuilder: (_, _) => const SizedBox(height: 14),
                   itemBuilder: (context, index) {
                     final collection = filteredCollections[index];
 
@@ -178,9 +173,7 @@ class _ColetasAgendadasPageState extends State<ColetasAgendadasPage> {
     );
   }
 
-  Future<void> _cancelCollection(
-    ScheduledCollection collection,
-  ) async {
+  Future<void> _cancelCollection(ScheduledCollection collection) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -224,9 +217,7 @@ class _ColetasAgendadasPageState extends State<ColetasAgendadasPage> {
   void _contactPartner(ScheduledCollection collection) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          'Abrindo contato com ${collection.partnerName}.',
-        ),
+        content: Text('Abrindo contato com ${collection.partnerName}.'),
         backgroundColor: AppColors.green,
       ),
     );
@@ -245,20 +236,14 @@ class _PageHeader extends StatelessWidget {
         children: [
           const Expanded(child: AppLogo()),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 11,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
             decoration: BoxDecoration(
               color: const Color(0xFFEAF6E8),
               borderRadius: BorderRadius.circular(18),
             ),
             child: const Row(
               children: [
-                CircleAvatar(
-                  radius: 4,
-                  backgroundColor: AppColors.green,
-                ),
+                CircleAvatar(radius: 4, backgroundColor: AppColors.green),
                 SizedBox(width: 6),
                 Text(
                   'Painel Admin',
@@ -316,11 +301,7 @@ class _HeroSection extends StatelessWidget {
           Text(
             'Acompanhe suas próximas coletas e consulte '
             'os agendamentos concluídos.',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              height: 1.45,
-            ),
+            style: TextStyle(color: Colors.white, fontSize: 16, height: 1.45),
           ),
         ],
       ),
@@ -341,8 +322,7 @@ class _CollectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor =
-        collection.completed ? Colors.grey : AppColors.green;
+    final statusColor = collection.completed ? Colors.grey : AppColors.green;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -375,9 +355,7 @@ class _CollectionCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  collection.completed
-                      ? 'Concluída'
-                      : 'Agendada',
+                  collection.completed ? 'Concluída' : 'Agendada',
                   style: TextStyle(
                     color: statusColor,
                     fontSize: 10,
@@ -419,10 +397,7 @@ class _CollectionCard extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Valor estimado a receber',
-                  style: TextStyle(
-                    color: Colors.black54,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.black54, fontSize: 12),
                 ),
               ),
               Text(
@@ -491,27 +466,17 @@ class _InformationRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: AppColors.green,
-          size: 20,
-        ),
+        Icon(icon, color: AppColors.green, size: 20),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
-              color: Colors.black54,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Colors.black54, fontSize: 12),
           ),
         ),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
         ),
       ],
     );

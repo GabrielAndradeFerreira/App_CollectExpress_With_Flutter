@@ -25,7 +25,13 @@ import 'core/widgets/app_menu_drawer.dart';
 
 //import 'features/admin/presentation/pages/configuracoes_admin_page.dart';
 
-import 'features/parceiros_reciclagem/presentation/pages/detalhes_material_page.dart';
+//import 'features/parceiros_reciclagem/presentation/pages/detalhes_material_page.dart';
+
+//import 'features/auth/presentation/pages/cadastro_page.dart';
+
+
+import 'features/auth/presentation/pages/cadastro_page.dart';
+import 'features/auth/presentation/pages/login_page.dart';
 
 void main() {
   runApp(const CollectApp());
@@ -43,7 +49,11 @@ class CollectApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.white,
         textTheme: GoogleFonts.poppinsTextTheme(),
       ),
-      home: const DetalhesMaterialPage(),
+      home: const LoginPage(),
+        routes: {
+          '/login': (_) => const LoginPage(),
+          '/cadastro': (_) => const CadastroPage(),
+        },
     );
   }
 }
