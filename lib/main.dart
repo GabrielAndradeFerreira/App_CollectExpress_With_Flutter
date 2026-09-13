@@ -13,7 +13,19 @@ import 'core/widgets/app_menu_drawer.dart';
 
 //import 'features/admin/presentation/pages/gestao_pedidos_page.dart';
 
-import 'features/admin/presentation/pages/perfil_loja_page.dart';
+//import 'features/admin/presentation/pages/perfil_loja_page.dart';
+
+//import 'features/admin/presentation/pages/admin_geral_page.dart';
+
+//import 'features/admin/presentation/pages/gestao_usuarios_page.dart';
+
+//import 'features/admin/presentation/pages/gestao_parceiros_page.dart';
+
+//import 'features/admin/presentation/pages/relatorio_financeiro_page.dart';
+
+//import 'features/admin/presentation/pages/configuracoes_admin_page.dart';
+
+import 'features/parceiros_reciclagem/presentation/pages/detalhes_material_page.dart';
 
 void main() {
   runApp(const CollectApp());
@@ -31,7 +43,7 @@ class CollectApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.white,
         textTheme: GoogleFonts.poppinsTextTheme(),
       ),
-      home: const PerfilLojaPage(),
+      home: const DetalhesMaterialPage(),
     );
   }
 }
