@@ -41,6 +41,9 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   flutter_dotenv: ^6.0.1
   http: ^1.6.0
+  image_picker: ^1.2.4
+  signature: ^6.4.0
+  printing: ^5.15.1
     
 
 dev_dependencies:
