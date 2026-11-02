@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -59,6 +60,24 @@ class ApiClient {
     bool auth = true,
   }) {
     return _send('GET', path, query: query, auth: auth);
+  }
+
+  /// Baixa um arquivo que exige login (ex.: PDF do contrato) e devolve
+  /// os bytes. Lança [ApiException] como os outros métodos.
+  Future<Uint8List> getBytes(String path) async {
+    try {
+      final response = await _dio.get<List<int>>(
+        path,
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {'Accept': '*/*'},
+        ),
+      );
+
+      return Uint8List.fromList(response.data ?? const []);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
   }
 
   Future<dynamic> post(String path, {Object? data, bool auth = true}) {

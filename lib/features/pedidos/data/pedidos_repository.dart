@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/aluguel.dart';
 import '../../../core/models/avaliacao.dart';
+import '../../../core/models/extensao.dart';
 import '../../../core/models/json_parsing.dart';
 import '../../../core/models/pagamento_pix.dart';
 import '../../../core/models/pagina.dart';
@@ -22,15 +25,21 @@ class PedidosRepository {
   /// [dataInicio] deve estar entre 1 e 60 dias a partir de hoje.
   ///
   /// A resposta não traz os itens; use [detalhe] para vê-los.
+  ///
+  /// O pedido exige o aceite dos termos e a assinatura desenhada pelo
+  /// cliente ([assinaturaBase64]: PNG em base64). A API gera o contrato.
   Future<Aluguel> checkout({
     required String enderecoId,
     required DateTime dataInicio,
+    required String assinaturaBase64,
   }) async {
     final data = await _api.post(
       '/alugueis/checkout',
       data: {
         'endereco_id': enderecoId,
         'data_inicio': formatApiDate(dataInicio),
+        'aceite_termos': true,
+        'assinatura_base64': assinaturaBase64,
       },
     );
 
@@ -47,6 +56,61 @@ class PedidosRepository {
   Future<Aluguel> detalhe(String id) async {
     return Aluguel.fromJson(
       parseMap(await _api.get('/alugueis/$id')) ?? const {},
+    );
+  }
+
+  /// PDF do contrato de locação (bytes).
+  Future<Uint8List> baixarContrato(String aluguelId) {
+    return _api.getBytes('/alugueis/$aluguelId/contrato');
+  }
+
+  /// Pede para estender o aluguel por [dias] (1 a 30). O fornecedor é
+  /// avisado por e-mail e pode aceitar ou recusar.
+  Future<Extensao> solicitarExtensao(String aluguelId, int dias) async {
+    final data = await _api.post(
+      '/alugueis/$aluguelId/extensoes',
+      data: {'dias_adicionais': dias},
+    );
+
+    return Extensao.fromJson(parseMap(data) ?? const {});
+  }
+
+  /// PIX de uma extensão aceita pelo fornecedor (vale 24 horas).
+  Future<PagamentoPix> gerarPixExtensao(
+    String aluguelId,
+    String extensaoId,
+  ) async {
+    return PagamentoPix.fromJson(
+      parseMap(
+            await _api.post('/alugueis/$aluguelId/extensoes/$extensaoId/pix'),
+          ) ??
+          const {},
+    );
+  }
+
+  Future<PagamentoPix> consultarPixExtensao(
+    String aluguelId,
+    String extensaoId,
+  ) async {
+    return PagamentoPix.fromJson(
+      parseMap(
+            await _api.get('/alugueis/$aluguelId/extensoes/$extensaoId/pix'),
+          ) ??
+          const {},
+    );
+  }
+
+  Future<PagamentoPix> simularPagamentoPixExtensao(
+    String aluguelId,
+    String extensaoId,
+  ) async {
+    return PagamentoPix.fromJson(
+      parseMap(
+            await _api.post(
+              '/alugueis/$aluguelId/extensoes/$extensaoId/pix/simular',
+            ),
+          ) ??
+          const {},
     );
   }
 

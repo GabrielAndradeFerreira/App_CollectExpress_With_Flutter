@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,6 +17,7 @@ import '../../../perfil/data/enderecos_repository.dart';
 import '../../data/pedidos_repository.dart';
 import '../carrinho_provider.dart';
 import '../pedidos_format.dart';
+import '../widgets/aceite_termos_card.dart';
 import '../widgets/novo_endereco_sheet.dart';
 import '../widgets/resumo_valores_card.dart';
 
@@ -60,6 +64,10 @@ class _AgendarEntregaPageState extends ConsumerState<AgendarEntregaPage> {
   DateTime? _dataInicio;
   bool _enviando = false;
 
+  /// Assinatura desenhada no aceite dos termos (PNG). Sem ela o pedido
+  /// não é enviado.
+  Uint8List? _assinatura;
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +83,7 @@ class _AgendarEntregaPageState extends ConsumerState<AgendarEntregaPage> {
     final carrinho = ref.watch(carrinhoProvider);
     final podeConfirmar =
         !_enviando &&
+        _assinatura != null &&
         (enderecos.value?.isNotEmpty ?? false) &&
         (carrinho.value?.isEmpty == false);
 
@@ -141,11 +150,19 @@ class _AgendarEntregaPageState extends ConsumerState<AgendarEntregaPage> {
                       onRetry: () => ref.invalidate(carrinhoProvider),
                       data: _buildValores,
                     ),
-                    const SizedBox(height: 34),
+                    const SizedBox(height: 28),
+                    AceiteTermosCard(
+                      assinatura: _assinatura,
+                      habilitado: !_enviando,
+                      onChanged: (assinatura) =>
+                          setState(() => _assinatura = assinatura),
+                    ),
+                    const SizedBox(height: 18),
                     SizedBox(
                       width: double.infinity,
                       height: 58,
                       child: ElevatedButton(
+                        key: const Key('confirmar_pedido'),
                         onPressed: podeConfirmar ? _confirmarPedido : null,
                         style: ElevatedButton.styleFrom(
                           elevation: 0,
@@ -410,7 +427,14 @@ class _AgendarEntregaPageState extends ConsumerState<AgendarEntregaPage> {
     );
     final dataInicio = _dataInicio;
 
-    if (carrinho == null || carrinho.isEmpty || endereco == null) return;
+    final assinatura = _assinatura;
+
+    if (carrinho == null ||
+        carrinho.isEmpty ||
+        endereco == null ||
+        assinatura == null) {
+      return;
+    }
 
     if (dataInicio == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -424,7 +448,12 @@ class _AgendarEntregaPageState extends ConsumerState<AgendarEntregaPage> {
     try {
       final pedido = await ref
           .read(pedidosRepositoryProvider)
-          .checkout(enderecoId: endereco.id, dataInicio: dataInicio);
+          .checkout(
+            enderecoId: endereco.id,
+            dataInicio: dataInicio,
+            assinaturaBase64:
+                'data:image/png;base64,${base64Encode(assinatura)}',
+          );
 
       if (!mounted) return;
 

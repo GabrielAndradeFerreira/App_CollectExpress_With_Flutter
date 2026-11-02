@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 /// Erro único para qualquer falha ao falar com a API.
@@ -55,6 +57,15 @@ class ApiException implements Exception {
   /// - novo: `{success: false, message, code, fields: {campo: mensagem}}`
   /// - antigo: `{error}` ou `{errors: [{campo, mensagem}]}`
   factory ApiException.fromResponse(int? statusCode, dynamic body) {
+    // Downloads (ResponseType.bytes) trazem o erro JSON como bytes.
+    if (body is List<int>) {
+      try {
+        body = jsonDecode(utf8.decode(body));
+      } on FormatException {
+        body = null;
+      }
+    }
+
     final Map json = body is Map ? body : const {};
     final fields = <String, String>{};
 

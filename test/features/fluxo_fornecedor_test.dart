@@ -3,7 +3,11 @@ import 'package:app_collect_express_with_flutter/core/network/api_client.dart';
 import 'package:app_collect_express_with_flutter/core/network/api_providers.dart';
 import 'package:app_collect_express_with_flutter/features/admin/presentation/pages/cadastrar_cacamba_page.dart';
 import 'package:app_collect_express_with_flutter/features/admin/presentation/pages/gestao_usuarios_page.dart';
+import 'package:app_collect_express_with_flutter/features/admin/presentation/widgets/foto_cacamba_picker.dart';
 import 'package:app_collect_express_with_flutter/features/auth/presentation/pages/cadastro_fornecedor_page.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart' show RequestOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -393,9 +397,137 @@ void main() {
         'tipo_residuo': 'Madeira',
         'tamanho_m3': 7,
         'preco_diaria': 180.5,
+        'permite_extensao': false,
       });
       expect(resultado, isTrue);
       expect(find.byType(CadastrarCacambaPage), findsNothing);
+    });
+
+    testWidgets('envia a foto escolhida em base64 e a opção de extensão', (
+      tester,
+    ) async {
+      final foto = FotoSelecionada(
+        Uint8List.fromList(base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==')),
+        'image/png',
+      );
+
+      final adapter = await _abrir(
+        tester,
+        Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      CadastrarCacambaPage(escolherFoto: () async => foto),
+                ),
+              ),
+              child: const Text('abrir'),
+            ),
+          ),
+        ),
+        api(
+          post: FakeResponse(201, {
+            'success': true,
+            'data': {...madeira, 'id': 'nova'},
+          }),
+        ),
+        storage: InMemoryTokenStorage(accessToken: 'jwt'),
+      );
+      await abrirCadastro(tester);
+
+      expect(find.byKey(const Key('foto_cacamba_previa')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('foto_cacamba_escolher')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('foto_cacamba_previa')), findsOneWidget);
+      expect(find.text('Trocar foto'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('permite_extensao_switch')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Madeira'));
+      await tester.enterText(_campo('0,00'), '99');
+      await tester.tap(find.text('Publicar Caçamba'));
+      await tester.pumpAndSettle();
+
+      final corpo = sentBody(
+        adapter.requests.singleWhere((r) => r.method == 'POST'),
+      );
+      expect(corpo['foto_base64'], foto.dataUri);
+      expect(corpo['foto_base64'], startsWith('data:image/png;base64,'));
+      expect(corpo['permite_extensao'], true);
+      expect(corpo.containsKey('foto_url'), isFalse);
+    });
+
+    testWidgets('remover a foto escolhida volta para a imagem padrão', (
+      tester,
+    ) async {
+      final foto = FotoSelecionada(
+        Uint8List.fromList(base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==')),
+        'image/png',
+      );
+
+      await _abrir(
+        tester,
+        Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      CadastrarCacambaPage(escolherFoto: () async => foto),
+                ),
+              ),
+              child: const Text('abrir'),
+            ),
+          ),
+        ),
+        api(post: _naoEncontrado),
+        storage: InMemoryTokenStorage(accessToken: 'jwt'),
+      );
+      await abrirCadastro(tester);
+
+      await tester.tap(find.byKey(const Key('foto_cacamba_escolher')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('foto_cacamba_previa')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('foto_cacamba_remover')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('foto_cacamba_previa')), findsNothing);
+      expect(find.text('Escolher foto'), findsOneWidget);
+    });
+
+    testWidgets('mostra o aviso quando a foto não serve', (tester) async {
+      await _abrir(
+        tester,
+        Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (_) => CadastrarCacambaPage(
+                    escolherFoto: () async =>
+                        throw const FotoInvalidaException('Foto grande demais.'),
+                  ),
+                ),
+              ),
+              child: const Text('abrir'),
+            ),
+          ),
+        ),
+        api(post: _naoEncontrado),
+        storage: InMemoryTokenStorage(accessToken: 'jwt'),
+      );
+      await abrirCadastro(tester);
+
+      await tester.tap(find.byKey(const Key('foto_cacamba_escolher')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Foto grande demais.'), findsOneWidget);
+      expect(find.byKey(const Key('foto_cacamba_previa')), findsNothing);
     });
 
     testWidgets('mostra no campo a categoria recusada pela API', (

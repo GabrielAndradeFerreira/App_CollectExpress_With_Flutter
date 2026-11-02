@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/aluguel.dart';
 import '../../../../core/models/avaliacao.dart';
 import '../../../../core/models/enums.dart';
+import '../../../../core/models/extensao.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_logo.dart';
@@ -12,7 +14,12 @@ import '../../../../core/navigation/app_routes.dart';
 import '../../../../core/widgets/app_menu_drawer.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/cacamba_image.dart';
+import '../../../pedidos/data/pedidos_repository.dart';
+import '../../../pedidos/presentation/compartilhar_pdf.dart';
+import '../../../pedidos/presentation/widgets/contrato_extensao_cards.dart';
+import '../../data/fornecedor_repository.dart';
 import '../fornecedor_providers.dart';
+import '../widgets/extensao_fornecedor_card.dart';
 import '../widgets/pedido_fornecedor.dart';
 
 import '../../../../core/widgets/app_bottom_navigation.dart';
@@ -28,6 +35,8 @@ class DetalhesPedidoPage extends ConsumerStatefulWidget {
 
 class _DetalhesPedidoPageState extends ConsumerState<DetalhesPedidoPage> {
   bool _atualizando = false;
+  bool _respondendo = false;
+  bool _baixandoContrato = false;
 
   @override
   Widget build(BuildContext context) {
@@ -89,6 +98,25 @@ class _DetalhesPedidoPageState extends ConsumerState<DetalhesPedidoPage> {
         const _SectionTitle('Serviço & Pagamento'),
         const SizedBox(height: 12),
         _PaymentCard(pedido: pedido),
+
+        if (pedido.contratoDisponivel) ...[
+          const SizedBox(height: 28),
+          ContratoCard(
+            baixando: _baixandoContrato,
+            onBaixar: () => _baixarContrato(pedido),
+          ),
+        ],
+
+        if (pedido.extensao?.atual case final extensao?) ...[
+          const SizedBox(height: 28),
+          const _SectionTitle('Extensão do Aluguel'),
+          const SizedBox(height: 12),
+          ExtensaoFornecedorCard(
+            extensao: extensao,
+            ocupado: _respondendo,
+            onResponder: (aceitar) => _responderExtensao(extensao, aceitar),
+          ),
+        ],
 
         if (avaliacao != null) ...[
           const SizedBox(height: 28),
@@ -166,6 +194,92 @@ class _DetalhesPedidoPageState extends ConsumerState<DetalhesPedidoPage> {
       await avancarStatusPedido(context, ref, widget.aluguelId, proximo);
     } finally {
       if (mounted) setState(() => _atualizando = false);
+    }
+  }
+
+  Future<void> _baixarContrato(Aluguel pedido) async {
+    setState(() => _baixandoContrato = true);
+
+    try {
+      final bytes = await ref
+          .read(pedidosRepositoryProvider)
+          .baixarContrato(widget.aluguelId);
+
+      await ref.read(compartilharPdfProvider)(
+        bytes,
+        'contrato-${pedido.codigo ?? widget.aluguelId}.pdf',
+      );
+    } on ApiException catch (error) {
+      if (mounted) showApiError(context, error);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível abrir o contrato.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _baixandoContrato = false);
+    }
+  }
+
+  Future<void> _responderExtensao(Extensao extensao, bool aceitar) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(aceitar ? 'Aceitar extensão?' : 'Recusar extensão?'),
+        content: Text(
+          aceitar
+              ? 'O cliente receberá um e-mail e terá 24 horas para pagar '
+                    '+${formatDias(extensao.diasAdicionais)} '
+                    '(${formatMoney(extensao.valor)}).'
+              : 'O cliente será avisado por e-mail e o aluguel segue com o '
+                    'prazo original.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Voltar'),
+          ),
+          TextButton(
+            key: const Key('extensao_confirmar'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              aceitar ? 'Aceitar' : 'Recusar',
+              style: TextStyle(color: aceitar ? AppColors.green : Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmou != true || !mounted) return;
+
+    setState(() => _respondendo = true);
+
+    try {
+      await ref
+          .read(fornecedorRepositoryProvider)
+          .responderExtensao(widget.aluguelId, extensao.id, aceitar: aceitar);
+      if (!mounted) return;
+
+      ref.invalidate(detalhePedidoFornecedorProvider(widget.aluguelId));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            aceitar
+                ? 'Extensão aceita. O cliente tem 24 horas para pagar.'
+                : 'Extensão recusada.',
+          ),
+          backgroundColor: AppColors.green,
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+
+      showApiError(context, error);
+      ref.invalidate(detalhePedidoFornecedorProvider(widget.aluguelId));
+    } finally {
+      if (mounted) setState(() => _respondendo = false);
     }
   }
 

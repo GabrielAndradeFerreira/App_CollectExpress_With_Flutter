@@ -15,6 +15,9 @@ class Cacamba {
   final double precoDiaria;
   final String? fotoUrl;
   final bool disponivel;
+
+  /// O fornecedor aceita pedidos de extensão do aluguel desta caçamba.
+  final bool permiteExtensao;
   final DateTime? criadoEm;
 
   /// Só no detalhe (`GET /cacambas/:id`).
@@ -32,6 +35,7 @@ class Cacamba {
     this.cacambeiroId,
     this.fotoUrl,
     this.disponivel = true,
+    this.permiteExtensao = false,
     this.criadoEm,
     this.cacambeiro,
     this.avaliacoes = const [],
@@ -51,6 +55,7 @@ class Cacamba {
       precoDiaria: parseDouble(json['preco_diaria']),
       fotoUrl: parseStringOrNull(json['foto_url']),
       disponivel: parseBool(json['disponivel'], fallback: true),
+      permiteExtensao: parseBool(json['permite_extensao']),
       criadoEm: parseDate(json['criado_em']),
       cacambeiro: cacambeiro == null ? null : Cacambeiro.fromJson(cacambeiro),
       avaliacoes: parseList(json['avaliacoes'], Avaliacao.fromJson),

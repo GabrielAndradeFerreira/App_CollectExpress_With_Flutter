@@ -14,18 +14,24 @@ import '../../data/pedidos_repository.dart';
 
 const _corPix = Color(0xFF32BCAD);
 
-/// Pagamento de um pedido por PIX.
+/// Pagamento de um pedido, ou de uma extensão dele ([extensaoId]), por PIX.
 ///
 /// Gera o PIX (ou reaproveita o pendente), mostra o QR Code e o copia e
 /// cola e consulta a API a cada [intervaloConsulta] até o pagamento ser
 /// confirmado. Quem abre a tela recarrega o pedido quando ela fecha.
 class PagamentoPixPage extends ConsumerStatefulWidget {
   final String aluguelId;
+
+  /// Quando informado, paga a extensão aceita pelo fornecedor em vez do
+  /// pedido.
+  final String? extensaoId;
+
   final Duration intervaloConsulta;
 
   const PagamentoPixPage({
     super.key,
     required this.aluguelId,
+    this.extensaoId,
     this.intervaloConsulta = const Duration(seconds: 5),
   });
 
@@ -47,6 +53,35 @@ class _PagamentoPixPageState extends ConsumerState<PagamentoPixPage> {
 
   bool get _pago => _jaPago || (_pix?.pago ?? false);
 
+  PedidosRepository get _repositorio => ref.read(pedidosRepositoryProvider);
+
+  Future<PagamentoPix> _gerarNaApi() {
+    final extensaoId = widget.extensaoId;
+
+    return extensaoId == null
+        ? _repositorio.gerarPix(widget.aluguelId)
+        : _repositorio.gerarPixExtensao(widget.aluguelId, extensaoId);
+  }
+
+  Future<PagamentoPix> _consultarNaApi() {
+    final extensaoId = widget.extensaoId;
+
+    return extensaoId == null
+        ? _repositorio.consultarPix(widget.aluguelId)
+        : _repositorio.consultarPixExtensao(widget.aluguelId, extensaoId);
+  }
+
+  Future<PagamentoPix> _simularNaApi() {
+    final extensaoId = widget.extensaoId;
+
+    return extensaoId == null
+        ? _repositorio.simularPagamentoPix(widget.aluguelId)
+        : _repositorio.simularPagamentoPixExtensao(
+            widget.aluguelId,
+            extensaoId,
+          );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -67,9 +102,7 @@ class _PagamentoPixPageState extends ConsumerState<PagamentoPixPage> {
     });
 
     try {
-      final pix = await ref
-          .read(pedidosRepositoryProvider)
-          .gerarPix(widget.aluguelId);
+      final pix = await _gerarNaApi();
       if (!mounted) return;
 
       setState(() => _pix = pix);
@@ -78,7 +111,8 @@ class _PagamentoPixPageState extends ConsumerState<PagamentoPixPage> {
       if (!mounted) return;
 
       setState(() {
-        if (error.code == 'ORDER_ALREADY_PAID') {
+        if (error.code == 'ORDER_ALREADY_PAID' ||
+            error.code == 'EXTENSION_ALREADY_PAID') {
           _jaPago = true;
         } else {
           _erro = error;
@@ -102,9 +136,7 @@ class _PagamentoPixPageState extends ConsumerState<PagamentoPixPage> {
     _consultando = true;
 
     try {
-      final pix = await ref
-          .read(pedidosRepositoryProvider)
-          .consultarPix(widget.aluguelId);
+      final pix = await _consultarNaApi();
       if (!mounted) return;
 
       setState(() => _pix = pix);
@@ -120,9 +152,7 @@ class _PagamentoPixPageState extends ConsumerState<PagamentoPixPage> {
     setState(() => _simulando = true);
 
     try {
-      final pix = await ref
-          .read(pedidosRepositoryProvider)
-          .simularPagamentoPix(widget.aluguelId);
+      final pix = await _simularNaApi();
       if (!mounted) return;
 
       setState(() => _pix = pix);
@@ -188,9 +218,11 @@ class _PagamentoPixPageState extends ConsumerState<PagamentoPixPage> {
               padding: const EdgeInsets.fromLTRB(18, 28, 18, 60),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  const Text(
-                    'Pagamento por Pix',
-                    style: TextStyle(
+                  Text(
+                    widget.extensaoId == null
+                        ? 'Pagamento por Pix'
+                        : 'Pagamento da extensão',
+                    style: const TextStyle(
                       fontSize: 25,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.7,

@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_menu_drawer.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../cacambas/data/catalogo_repository.dart';
 import '../../data/fornecedor_repository.dart';
+import '../widgets/foto_cacamba_picker.dart';
 
 import '../../../../core/widgets/app_bottom_navigation.dart';
 
@@ -45,7 +46,13 @@ final _categoriasConhecidasProvider = FutureProvider.autoDispose<List<String>>((
 
 /// Fecha com `true` quando a caçamba foi cadastrada.
 class CadastrarCacambaPage extends ConsumerStatefulWidget {
-  const CadastrarCacambaPage({super.key});
+  const CadastrarCacambaPage({
+    super.key,
+    this.escolherFoto = escolherFotoDaGaleria,
+  });
+
+  /// Abre a galeria. Os testes trocam por uma foto pronta.
+  final Future<FotoSelecionada?> Function() escolherFoto;
 
   @override
   ConsumerState<CadastrarCacambaPage> createState() =>
@@ -58,10 +65,15 @@ class _CadastrarCacambaPageState extends ConsumerState<CadastrarCacambaPage> {
   final _formKey = GlobalKey<FormState>();
   final _wasteController = TextEditingController();
   final _priceController = TextEditingController();
-  final _photoController = TextEditingController();
 
   double _volume = 5;
   bool _isLoading = false;
+
+  /// Foto escolhida na galeria; vai para a API em base64.
+  FotoSelecionada? _foto;
+
+  /// O fornecedor aceita pedidos de extensão do aluguel desta caçamba.
+  bool _permiteExtensao = false;
 
   /// Erros de validação devolvidos pela API, por campo.
   Map<String, String> _errosApi = const {};
@@ -70,7 +82,6 @@ class _CadastrarCacambaPageState extends ConsumerState<CadastrarCacambaPage> {
   void dispose() {
     _wasteController.dispose();
     _priceController.dispose();
-    _photoController.dispose();
     super.dispose();
   }
 
@@ -185,23 +196,40 @@ class _CadastrarCacambaPageState extends ConsumerState<CadastrarCacambaPage> {
                         const SizedBox(height: 20),
                         const _FieldLabel('Foto da Caçamba (opcional)'),
                         const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _photoController,
-                          keyboardType: TextInputType.url,
-                          decoration: _inputDecoration(
-                            hintText: 'https://... (link de uma imagem)',
-                            prefixIcon: const Icon(
-                              Icons.image_outlined,
-                              color: Color(0xFF76A24A),
-                            ),
-                          ),
-                          validator: _comErroDaApi('foto_url', _validateUrl),
+                        FotoCacambaPicker(
+                          escolher: widget.escolherFoto,
+                          foto: _foto,
+                          tamanhoM3: _volume,
+                          erro: _errosApi['foto_base64'] ?? _errosApi['foto_url'],
+                          onChanged: (foto) => setState(() => _foto = foto),
                         ),
                         const SizedBox(height: 6),
                         const Text(
                           'Sem foto, o app mostra uma imagem padrão do tamanho '
                           'escolhido.',
                           style: TextStyle(color: Colors.black54, fontSize: 11),
+                        ),
+
+                        const SizedBox(height: 20),
+                        SwitchListTile(
+                          key: const Key('permite_extensao_switch'),
+                          contentPadding: EdgeInsets.zero,
+                          activeThumbColor: AppColors.green,
+                          value: _permiteExtensao,
+                          onChanged: (valor) =>
+                              setState(() => _permiteExtensao = valor),
+                          title: const Text(
+                            'Permitir extensão do aluguel',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'O cliente poderá pedir mais dias. Você recebe um '
+                            'e-mail e decide se aceita.',
+                            style: TextStyle(fontSize: 12),
+                          ),
                         ),
 
                         const SizedBox(height: 26),
@@ -345,18 +373,6 @@ class _CadastrarCacambaPageState extends ConsumerState<CadastrarCacambaPage> {
     return double.tryParse(text);
   }
 
-  String? _validateUrl(String? value) {
-    final text = value?.trim() ?? '';
-    if (text.isEmpty) return null;
-
-    final uri = Uri.tryParse(text);
-    final valid =
-        uri != null &&
-        (uri.scheme == 'http' || uri.scheme == 'https') &&
-        uri.host.isNotEmpty;
-
-    return valid ? null : 'Informe um link que comece com http:// ou https://';
-  }
 
   Future<void> _publish() async {
     FocusScope.of(context).unfocus();
@@ -365,7 +381,6 @@ class _CadastrarCacambaPageState extends ConsumerState<CadastrarCacambaPage> {
     if (!_formKey.currentState!.validate()) return;
 
     final tipoResiduo = _wasteController.text.trim();
-    final fotoUrl = _photoController.text.trim();
 
     setState(() => _isLoading = true);
     try {
@@ -376,7 +391,8 @@ class _CadastrarCacambaPageState extends ConsumerState<CadastrarCacambaPage> {
             tipoResiduo: tipoResiduo,
             tamanhoM3: _volume,
             precoDiaria: _parseDecimal(_priceController.text)!,
-            fotoUrl: fotoUrl.isEmpty ? null : fotoUrl,
+            fotoBase64: _foto?.dataUri,
+            permiteExtensao: _permiteExtensao,
           );
       if (!mounted) return;
 

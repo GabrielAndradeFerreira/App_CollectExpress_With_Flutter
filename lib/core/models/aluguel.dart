@@ -2,6 +2,7 @@ import 'avaliacao.dart';
 import 'cacamba.dart';
 import 'endereco.dart';
 import 'enums.dart';
+import 'extensao.dart';
 import 'json_parsing.dart';
 
 /// Tabelas `alugueis` + `itens_aluguel` (um pedido).
@@ -40,6 +41,13 @@ class Aluguel {
   final Avaliacao? avaliacao;
   final List<EtapaAluguel> etapas;
 
+  /// Só no detalhe: existe contrato em PDF (pedidos novos têm; os
+  /// anteriores ao recurso não).
+  final bool contratoDisponivel;
+
+  /// Só no detalhe: regras e estado da extensão do aluguel.
+  final ResumoExtensao? extensao;
+
   const Aluguel({
     required this.id,
     required this.diasAluguel,
@@ -62,12 +70,16 @@ class Aluguel {
     this.itens = const [],
     this.avaliacao,
     this.etapas = const [],
+    this.contratoDisponivel = false,
+    this.extensao,
   });
 
   factory Aluguel.fromJson(Map<String, dynamic> json) {
     final valores = parseMap(json['valores']) ?? const {};
     final cacambeiro = parseMap(json['cacambeiro']);
     final avaliacao = parseMap(json['avaliacao']);
+    final contrato = parseMap(json['contrato']);
+    final extensao = parseMap(json['extensao']);
 
     // No detalhe, contato e endereço vêm aninhados; na gestão de pedidos
     // do fornecedor, achatados na linha.
@@ -120,6 +132,8 @@ class Aluguel {
       itens: parseList(json['itens'], ItemAluguel.fromJson),
       avaliacao: avaliacao == null ? null : Avaliacao.fromJson(avaliacao),
       etapas: parseList(json['etapas'], EtapaAluguel.fromJson),
+      contratoDisponivel: parseBool(contrato?['disponivel']),
+      extensao: extensao == null ? null : ResumoExtensao.fromJson(extensao),
     );
   }
 }

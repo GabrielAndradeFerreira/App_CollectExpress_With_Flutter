@@ -11,11 +11,17 @@ import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/cacamba_image.dart';
 import '../../data/fornecedor_repository.dart';
 import '../fornecedor_providers.dart';
+import '../widgets/foto_cacamba_picker.dart';
 import 'cadastrar_cacamba_page.dart';
 
 import '../../../../core/widgets/app_bottom_navigation.dart';
 
-enum _AcaoCacamba { alternarDisponibilidade, excluir }
+enum _AcaoCacamba {
+  alternarDisponibilidade,
+  alternarExtensao,
+  alterarFoto,
+  excluir,
+}
 
 class MinhasCacambasPage extends ConsumerStatefulWidget {
   const MinhasCacambasPage({super.key});
@@ -60,6 +66,10 @@ class _MinhasCacambasPageState extends ConsumerState<MinhasCacambasPage> {
     switch (acao) {
       case _AcaoCacamba.alternarDisponibilidade:
         await _alternarDisponibilidade(cacamba);
+      case _AcaoCacamba.alternarExtensao:
+        await _alternarExtensao(cacamba);
+      case _AcaoCacamba.alterarFoto:
+        await _alterarFoto(cacamba);
       case _AcaoCacamba.excluir:
         await _excluir(cacamba);
     }
@@ -83,6 +93,80 @@ class _MinhasCacambasPageState extends ConsumerState<MinhasCacambasPage> {
                 ? 'Caçamba marcada como disponível.'
                 : 'Caçamba marcada como indisponível.',
           ),
+          backgroundColor: AppColors.green,
+        ),
+      );
+    } on ApiException catch (error) {
+      if (mounted) showApiError(context, error);
+    } finally {
+      if (mounted) setState(() => _processando.remove(cacamba.id));
+    }
+  }
+
+  Future<void> _alternarExtensao(Cacamba cacamba) async {
+    final permite = !cacamba.permiteExtensao;
+
+    setState(() => _processando.add(cacamba.id));
+    try {
+      await ref
+          .read(fornecedorRepositoryProvider)
+          .atualizarCacamba(cacamba.id, permiteExtensao: permite);
+      if (!mounted) return;
+
+      ref.invalidate(minhasCacambasProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            permite
+                ? 'Extensão de aluguel ativada para esta caçamba.'
+                : 'Extensão de aluguel desativada para esta caçamba.',
+          ),
+          backgroundColor: AppColors.green,
+        ),
+      );
+    } on ApiException catch (error) {
+      if (mounted) showApiError(context, error);
+    } finally {
+      if (mounted) setState(() => _processando.remove(cacamba.id));
+    }
+  }
+
+  Future<void> _alterarFoto(Cacamba cacamba) async {
+    FotoSelecionada? foto;
+
+    try {
+      foto = await escolherFotoDaGaleria();
+    } on FotoInvalidaException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.mensagem)));
+      }
+      return;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível abrir a galeria de fotos.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (foto == null || !mounted) return;
+
+    setState(() => _processando.add(cacamba.id));
+    try {
+      await ref
+          .read(fornecedorRepositoryProvider)
+          .atualizarCacamba(cacamba.id, fotoBase64: foto.dataUri);
+      if (!mounted) return;
+
+      ref.invalidate(minhasCacambasProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto atualizada.'),
           backgroundColor: AppColors.green,
         ),
       );
@@ -414,6 +498,10 @@ class _CacambaCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _StatusBadge(disponivel: cacamba.disponivel),
+              if (cacamba.permiteExtensao) ...[
+                const SizedBox(height: 4),
+                const _ExtensaoBadge(),
+              ],
               const Spacer(),
               if (processando)
                 const Padding(
@@ -441,6 +529,18 @@ class _CacambaCard extends StatelessWidget {
                             : 'Marcar como disponível',
                       ),
                     ),
+                    PopupMenuItem(
+                      value: _AcaoCacamba.alternarExtensao,
+                      child: Text(
+                        cacamba.permiteExtensao
+                            ? 'Não permitir extensão do aluguel'
+                            : 'Permitir extensão do aluguel',
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: _AcaoCacamba.alterarFoto,
+                      child: Text('Alterar foto'),
+                    ),
                     const PopupMenuItem(
                       value: _AcaoCacamba.excluir,
                       child: Text(
@@ -453,6 +553,31 @@ class _CacambaCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Marca as caçambas que aceitam pedidos de extensão de aluguel.
+class _ExtensaoBadge extends StatelessWidget {
+  const _ExtensaoBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('badge_extensao'),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4D6),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: const Text(
+        'Extensão ativa',
+        style: TextStyle(
+          color: Color(0xFF8A6100),
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

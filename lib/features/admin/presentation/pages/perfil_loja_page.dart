@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../../../../core/widgets/app_menu_drawer.dart';
+import '../widgets/assinatura_empresa_card.dart';
 
 import '../../../../core/widgets/app_bottom_navigation.dart';
 
@@ -117,6 +118,8 @@ class _PerfilLojaPageState extends State<PerfilLojaPage> {
                         decoration: _inputDecoration(),
                         validator: _requiredValidator,
                       ),
+                      const SizedBox(height: 28),
+                      const AssinaturaEmpresaCard(),
                       const SizedBox(height: 28),
                       const Text(
                         'Dados Bancários para Repasse',

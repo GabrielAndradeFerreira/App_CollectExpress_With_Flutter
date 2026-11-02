@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/aluguel.dart';
 import '../../../../core/models/enums.dart';
+import '../../../../core/models/extensao.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
@@ -14,7 +15,9 @@ import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/cacamba_image.dart';
 import '../../../auth/data/sessao_provider.dart';
 import '../../data/pedidos_repository.dart';
+import '../compartilhar_pdf.dart';
 import '../pedidos_format.dart';
+import '../widgets/contrato_extensao_cards.dart';
 import 'pagamento_pix_page.dart';
 
 /// Detalhe de um pedido: itens, endereço, contatos, avaliação e etapas.
@@ -36,6 +39,9 @@ class AcompanharPedidoPage extends ConsumerStatefulWidget {
 }
 
 class _AcompanharPedidoPageState extends ConsumerState<AcompanharPedidoPage> {
+  bool _baixandoContrato = false;
+  bool _estendendo = false;
+
   Future<void> _atualizar() async {
     final provider = pedidoDetalheProvider(widget.aluguelId);
 
@@ -131,6 +137,22 @@ class _AcompanharPedidoPageState extends ConsumerState<AcompanharPedidoPage> {
           const SizedBox(height: 20),
           _PagamentoPendenteCard(valor: pedido.precoFinal, onPagar: _pagar),
         ],
+        if (pedido.contratoDisponivel) ...[
+          const SizedBox(height: 20),
+          ContratoCard(
+            baixando: _baixandoContrato,
+            onBaixar: () => _baixarContrato(pedido),
+          ),
+        ],
+        if (ExtensaoCard.deveAparecer(pedido)) ...[
+          const SizedBox(height: 20),
+          ExtensaoCard(
+            resumo: pedido.extensao!,
+            ocupado: _estendendo,
+            onEstender: () => _estender(pedido.extensao!),
+            onPagar: _pagarExtensao,
+          ),
+        ],
         const SizedBox(height: 20),
         _OrderProgressCard(etapas: _etapasDo(pedido)),
         const SizedBox(height: 20),
@@ -158,6 +180,78 @@ class _AcompanharPedidoPageState extends ConsumerState<AcompanharPedidoPage> {
     await Navigator.of(context).push(
       MaterialPageRoute<bool>(
         builder: (_) => PagamentoPixPage(aluguelId: widget.aluguelId),
+      ),
+    );
+    if (!mounted) return;
+
+    ref.invalidate(pedidoDetalheProvider(widget.aluguelId));
+  }
+
+  Future<void> _baixarContrato(Aluguel pedido) async {
+    setState(() => _baixandoContrato = true);
+
+    try {
+      final bytes = await ref
+          .read(pedidosRepositoryProvider)
+          .baixarContrato(widget.aluguelId);
+
+      await ref.read(compartilharPdfProvider)(
+        bytes,
+        'contrato-${pedido.codigo ?? widget.aluguelId}.pdf',
+      );
+    } on ApiException catch (error) {
+      if (mounted) showApiError(context, error);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível abrir o contrato.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _baixandoContrato = false);
+    }
+  }
+
+  Future<void> _estender(ResumoExtensao resumo) async {
+    final dias = await mostrarEscolhaDeDias(context, resumo);
+    if (dias == null || !mounted) return;
+
+    setState(() => _estendendo = true);
+
+    try {
+      await ref
+          .read(pedidosRepositoryProvider)
+          .solicitarExtensao(widget.aluguelId, dias);
+      if (!mounted) return;
+
+      ref.invalidate(pedidoDetalheProvider(widget.aluguelId));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Pedido enviado ao fornecedor. Você receberá a resposta por '
+            'e-mail.',
+          ),
+          backgroundColor: AppColors.green,
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+
+      showApiError(context, error);
+      // O pedido pode ter mudado (ex.: já havia outra extensão em aberto).
+      ref.invalidate(pedidoDetalheProvider(widget.aluguelId));
+    } finally {
+      if (mounted) setState(() => _estendendo = false);
+    }
+  }
+
+  Future<void> _pagarExtensao(String extensaoId) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<bool>(
+        builder: (_) => PagamentoPixPage(
+          aluguelId: widget.aluguelId,
+          extensaoId: extensaoId,
+        ),
       ),
     );
     if (!mounted) return;

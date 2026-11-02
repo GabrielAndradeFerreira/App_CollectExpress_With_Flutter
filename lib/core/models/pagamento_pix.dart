@@ -9,6 +9,9 @@ class PagamentoPix {
   final String id;
   final String aluguelId;
 
+  /// Preenchido quando o PIX é de uma extensão de aluguel, não do pedido.
+  final String? extensaoId;
+
   /// Status na AbacatePay: `PENDING`, `PAID`, `EXPIRED`, `CANCELLED`...
   final String status;
 
@@ -36,6 +39,7 @@ class PagamentoPix {
     required this.status,
     required this.valor,
     required this.copiaECola,
+    this.extensaoId,
     this.statusPagamento,
     this.qrCodeBase64,
     this.devMode = false,
@@ -69,6 +73,7 @@ class PagamentoPix {
     return PagamentoPix(
       id: parseString(json['id']),
       aluguelId: parseString(json['aluguel_id']),
+      extensaoId: parseStringOrNull(json['extensao_id']),
       status: parseString(json['status']).toUpperCase(),
       statusPagamento: StatusPagamento.fromApi(json['status_pagamento']),
       valor: parseDouble(json['valor']),

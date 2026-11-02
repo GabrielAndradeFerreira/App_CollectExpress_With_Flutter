@@ -1,10 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/aluguel.dart';
 import '../../../core/models/cacamba.dart';
 import '../../../core/models/enums.dart';
+import '../../../core/models/extensao.dart';
 import '../../../core/models/json_parsing.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/network/api_providers.dart';
 import '../domain/models/fornecedor_dashboard.dart';
 
@@ -50,12 +54,18 @@ class FornecedorRepository {
   }
 
   /// [tipoResiduo] precisa ser o nome de uma categoria cadastrada.
+  ///
+  /// A foto vai em [fotoBase64] (a API grava o arquivo e guarda o
+  /// caminho). [fotoUrl] ainda é aceito para links externos.
+  /// [permiteExtensao] liga os pedidos de extensão de aluguel.
   Future<Cacamba> criarCacamba({
     required String nome,
     required String tipoResiduo,
     required double tamanhoM3,
     required double precoDiaria,
     String? fotoUrl,
+    String? fotoBase64,
+    bool permiteExtensao = false,
   }) async {
     final data = await _api.post(
       '/cacambas',
@@ -65,6 +75,8 @@ class FornecedorRepository {
         'tamanho_m3': tamanhoM3,
         'preco_diaria': precoDiaria,
         'foto_url': ?fotoUrl,
+        'foto_base64': ?fotoBase64,
+        'permite_extensao': permiteExtensao,
       },
     );
 
@@ -79,8 +91,10 @@ class FornecedorRepository {
     double? tamanhoM3,
     double? precoDiaria,
     String? fotoUrl,
+    String? fotoBase64,
     bool removerFoto = false,
     bool? disponivel,
+    bool? permiteExtensao,
   }) async {
     final data = await _api.put(
       '/cacambas/$id',
@@ -90,7 +104,9 @@ class FornecedorRepository {
         'tamanho_m3': ?tamanhoM3,
         'preco_diaria': ?precoDiaria,
         if (removerFoto) 'foto_url': null else 'foto_url': ?fotoUrl,
+        'foto_base64': ?fotoBase64,
         'disponivel': ?disponivel,
+        'permite_extensao': ?permiteExtensao,
       },
     );
 
@@ -107,6 +123,44 @@ class FornecedorRepository {
   /// Pedidos recebidos, com contato do cliente e endereço de entrega.
   Future<List<Aluguel>> pedidosRecebidos() async {
     return parseList(await _api.get('/alugueis/gestao'), Aluguel.fromJson);
+  }
+
+  /// Assinatura padrão da empresa usada nos contratos (PNG), ou `null`
+  /// se ainda não foi enviada.
+  Future<Uint8List?> assinaturaEmpresa() async {
+    try {
+      return await _api.getBytes('/cacambeiros/me/assinatura');
+    } on ApiException catch (error) {
+      if (error.code == 'SIGNATURE_NOT_FOUND') return null;
+      rethrow;
+    }
+  }
+
+  /// PNG em base64 (3:1, de 300x100 a 1200x400 px, até 300 KB).
+  Future<void> salvarAssinaturaEmpresa(String assinaturaBase64) async {
+    await _api.put(
+      '/cacambeiros/me/assinatura',
+      data: {'assinatura_base64': assinaturaBase64},
+    );
+  }
+
+  Future<void> removerAssinaturaEmpresa() async {
+    await _api.delete('/cacambeiros/me/assinatura');
+  }
+
+  /// Aceita ou recusa um pedido de extensão. Aceitando, o cliente tem
+  /// 24 horas para pagar.
+  Future<Extensao> responderExtensao(
+    String aluguelId,
+    String extensaoId, {
+    required bool aceitar,
+  }) async {
+    final data = await _api.patch(
+      '/alugueis/$aluguelId/extensoes/$extensaoId',
+      data: {'acao': aceitar ? 'ACEITAR' : 'RECUSAR'},
+    );
+
+    return Extensao.fromJson(parseMap(data) ?? const {});
   }
 
   /// Avança o pedido uma etapa por vez:
