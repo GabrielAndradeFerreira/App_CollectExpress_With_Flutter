@@ -10,6 +10,7 @@ import '../../../../core/widgets/async_value_view.dart';
 import '../../../auth/data/sessao_provider.dart';
 import '../../domain/models/fornecedor_dashboard.dart';
 import '../fornecedor_providers.dart';
+import '../widgets/aviso_pendencias_fornecedor.dart';
 import '../widgets/pedido_fornecedor.dart';
 import 'detalhes_pedido_page.dart';
 
@@ -32,6 +33,7 @@ class PainelAdminPage extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(18, 24, 18, 50),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
+                  const AvisoPendenciasFornecedor(),
                   const _WelcomeSection(),
                   const SizedBox(height: 24),
                   AsyncValueView(

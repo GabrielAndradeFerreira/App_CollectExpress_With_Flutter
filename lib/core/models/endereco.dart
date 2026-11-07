@@ -17,6 +17,11 @@ class Endereco {
 
   final DateTime? criadoEm;
 
+  /// Preenchidos pela API ao salvar; nulos se o endereço não foi
+  /// localizado no mapa.
+  final double? latitude;
+  final double? longitude;
+
   const Endereco({
     this.id = '',
     required this.cep,
@@ -25,6 +30,8 @@ class Endereco {
     this.bairro = '',
     required this.cidadeEstado,
     this.criadoEm,
+    this.latitude,
+    this.longitude,
   });
 
   factory Endereco.fromJson(Map<String, dynamic> json) {
@@ -36,6 +43,8 @@ class Endereco {
       bairro: parseString(json['bairro']),
       cidadeEstado: parseString(json['cidade_estado']),
       criadoEm: parseDate(json['criado_em']),
+      latitude: parseDoubleOrNull(json['latitude']),
+      longitude: parseDoubleOrNull(json['longitude']),
     );
   }
 

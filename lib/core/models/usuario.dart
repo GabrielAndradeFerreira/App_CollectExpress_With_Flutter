@@ -60,13 +60,15 @@ class DetalhesCacambeiro {
   /// `HH:MM` ao enviar; a API devolve `HH:MM:SS`.
   final String horarioInicio;
   final String horarioFim;
-  final double raioEntregaKm;
+
+  /// Raio da área de atendimento. Nulo até o fornecedor definir a cerca.
+  final double? raioEntregaKm;
   final double taxaEntrega;
 
   const DetalhesCacambeiro({
     required this.horarioInicio,
     required this.horarioFim,
-    required this.raioEntregaKm,
+    this.raioEntregaKm,
     required this.taxaEntrega,
   });
 
@@ -74,7 +76,7 @@ class DetalhesCacambeiro {
     return DetalhesCacambeiro(
       horarioInicio: parseString(json['horario_inicio']),
       horarioFim: parseString(json['horario_fim']),
-      raioEntregaKm: parseDouble(json['raio_entrega_km']),
+      raioEntregaKm: parseDoubleOrNull(json['raio_entrega_km']),
       taxaEntrega: parseDouble(json['taxa_entrega']),
     );
   }
@@ -83,7 +85,7 @@ class DetalhesCacambeiro {
     return {
       'horario_inicio': horarioInicio,
       'horario_fim': horarioFim,
-      'raio_entrega_km': raioEntregaKm,
+      if (raioEntregaKm != null) 'raio_entrega_km': raioEntregaKm,
       'taxa_entrega': taxaEntrega,
     };
   }

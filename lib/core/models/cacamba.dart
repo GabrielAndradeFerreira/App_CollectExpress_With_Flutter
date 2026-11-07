@@ -26,6 +26,16 @@ class Cacamba {
   /// Só no detalhe: as 10 avaliações mais recentes do fornecedor.
   final List<Avaliacao> avaliacoes;
 
+  /// Só quando o catálogo é consultado com a localização do cliente.
+  /// `null` = não avaliado; `false` = o fornecedor não atende o local.
+  final bool? dentroDaArea;
+
+  /// Distância do fornecedor até o local do cliente.
+  final double? distanciaKm;
+
+  /// O fornecedor já definiu a área de atendimento.
+  final bool areaDefinida;
+
   const Cacamba({
     required this.id,
     required this.nome,
@@ -39,7 +49,14 @@ class Cacamba {
     this.criadoEm,
     this.cacambeiro,
     this.avaliacoes = const [],
+    this.dentroDaArea,
+    this.distanciaKm,
+    this.areaDefinida = false,
   });
+
+  /// Só pode alugar se o local do cliente não foi avaliado ou se está
+  /// dentro da área de atendimento.
+  bool get podeAlugar => dentroDaArea != false;
 
   factory Cacamba.fromJson(Map<String, dynamic> json) {
     final cacambeiro = parseMap(json['cacambeiro']);
@@ -59,6 +76,11 @@ class Cacamba {
       criadoEm: parseDate(json['criado_em']),
       cacambeiro: cacambeiro == null ? null : Cacambeiro.fromJson(cacambeiro),
       avaliacoes: parseList(json['avaliacoes'], Avaliacao.fromJson),
+      dentroDaArea: json['dentro_da_area'] is bool
+          ? json['dentro_da_area'] as bool
+          : null,
+      distanciaKm: parseDoubleOrNull(json['distancia_km']),
+      areaDefinida: parseBool(json['area_definida']),
     );
   }
 }

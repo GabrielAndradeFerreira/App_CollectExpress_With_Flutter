@@ -39,7 +39,6 @@ class _CadastroFornecedorPageState
 
   final _openingController = TextEditingController();
   final _closingController = TextEditingController();
-  final _radiusController = TextEditingController();
   final _feeController = TextEditingController();
 
   late final TextEditingController _emailController;
@@ -72,7 +71,6 @@ class _CadastroFornecedorPageState
 
     _openingController.dispose();
     _closingController.dispose();
-    _radiusController.dispose();
     _feeController.dispose();
 
     super.dispose();
@@ -238,13 +236,6 @@ class _CadastroFornecedorPageState
                 ),
               ),
             ],
-          ),
-          _buildField(
-            label: 'Raio de Entrega (km)',
-            controller: _radiusController,
-            hint: 'Distância máxima atendida, de 1 a 200 km',
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            validator: _comErroDaApi('raio_entrega_km', _validateRadius),
           ),
           _buildField(
             label: 'Taxa de Entrega',
@@ -510,20 +501,6 @@ class _CadastroFornecedorPageState
     return null;
   }
 
-  String? _validateRadius(String? value) {
-    final radius = _parseDecimal(value ?? '');
-
-    if (radius == null) {
-      return 'Informe o raio de entrega';
-    }
-
-    if (radius < 1 || radius > 200) {
-      return 'O raio deve estar entre 1 e 200 km';
-    }
-
-    return null;
-  }
-
   String? _validateFee(String? value) {
     final fee = _parseDecimal(value ?? '');
 
@@ -559,7 +536,6 @@ class _CadastroFornecedorPageState
             detalhesCacambeiro: DetalhesCacambeiro(
               horarioInicio: _openingController.text,
               horarioFim: _closingController.text,
-              raioEntregaKm: _parseDecimal(_radiusController.text)!,
               taxaEntrega: _parseDecimal(_feeController.text)!,
             ),
           );

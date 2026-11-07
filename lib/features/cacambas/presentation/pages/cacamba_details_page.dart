@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/models/area_atendimento.dart';
 import '../../../../core/models/cacamba.dart';
 import '../../../../core/models/cacambeiro.dart';
 import '../../../../core/network/api_exception.dart';
@@ -16,15 +17,20 @@ import '../../../pedidos/data/carrinho_repository.dart';
 import '../../../pedidos/presentation/carrinho_provider.dart';
 import '../../../pedidos/presentation/pages/resumo_pedido_page.dart';
 import '../../data/catalogo_repository.dart';
+import '../local_entrega_provider.dart';
 
 //botoes de navegação do rodapé
 import '../../../../core/widgets/app_bottom_navigation.dart';
 
-final _cacambaProvider = FutureProvider.autoDispose.family<Cacamba, String>((
+typedef _Consulta = ({String id, LocalEntrega? local});
+
+final _cacambaProvider = FutureProvider.autoDispose.family<Cacamba, _Consulta>((
   ref,
-  id,
+  consulta,
 ) {
-  return ref.watch(catalogoRepositoryProvider).detalheCacamba(id);
+  return ref
+      .watch(catalogoRepositoryProvider)
+      .detalheCacamba(consulta.id, local: consulta.local);
 });
 
 class CacambaDetailsPage extends ConsumerStatefulWidget {
@@ -46,7 +52,10 @@ class _CacambaDetailsPageState extends ConsumerState<CacambaDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = _cacambaProvider(widget.cacambaId);
+    final provider = _cacambaProvider((
+      id: widget.cacambaId,
+      local: ref.watch(localEntregaProvider),
+    ));
 
     return Scaffold(
       body: SafeArea(
@@ -132,51 +141,55 @@ class _CacambaDetailsPageState extends ConsumerState<CacambaDetailsPage> {
                 _FornecedorInfo(fornecedor: cacamba.cacambeiro!),
               ],
               const SizedBox(height: 20),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _buildQuantityField()),
-                  const SizedBox(width: 10),
-                  Expanded(child: _buildDaysField()),
-                ],
-              ),
-              const SizedBox(height: 22),
-              SizedBox(
-                width: double.infinity,
-                height: 58,
-                child: ElevatedButton.icon(
-                  onPressed: cacamba.disponivel && !_adicionando
-                      ? () => _addToCart(cacamba)
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: AppColors.green,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(11),
+              if (!cacamba.podeAlugar)
+                _ForaDaArea(cacamba: cacamba)
+              else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _buildQuantityField()),
+                    const SizedBox(width: 10),
+                    Expanded(child: _buildDaysField()),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  height: 58,
+                  child: ElevatedButton.icon(
+                    onPressed: cacamba.disponivel && !_adicionando
+                        ? () => _addToCart(cacamba)
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: AppColors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(11),
+                      ),
                     ),
-                  ),
-                  icon: _adicionando
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.shopping_bag_outlined),
-                  label: Text(
-                    cacamba.disponivel
-                        ? 'Adicionar ao Carrinho'
-                        : 'Indisponível',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
+                    icon: _adicionando
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.shopping_bag_outlined),
+                    label: Text(
+                      cacamba.disponivel
+                          ? 'Adicionar ao Carrinho'
+                          : 'Indisponível',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
               const SizedBox(height: 180),
             ],
           ),
@@ -301,6 +314,51 @@ class _CacambaDetailsPageState extends ConsumerState<CacambaDetailsPage> {
     ref.invalidate(carrinhoProvider);
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const ResumoPedidoPage()));
+  }
+}
+
+/// Fornecedor que não atende o local do cliente: não dá para alugar.
+class _ForaDaArea extends StatelessWidget {
+  const _ForaDaArea({required this.cacamba});
+
+  final Cacamba cacamba;
+
+  @override
+  Widget build(BuildContext context) {
+    final distancia = cacamba.distanciaKm;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF6E5),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Fora da área de atendimento',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            [
+              'Este fornecedor não atende o seu endereço'
+                  '${distancia == null ? '' : ' (fica a ${distancia.toStringAsFixed(1).replaceAll('.', ',')} km)'}'
+                  ', por isso não é possível alugar por aqui.',
+              'Altere o CEP de entrega no catálogo para ver as caçambas '
+                  'que chegam até você.',
+            ].join(' '),
+            style: const TextStyle(
+              color: Colors.black54,
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

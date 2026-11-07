@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/aluguel.dart';
+import '../../../core/models/area_atendimento.dart';
 import '../../../core/models/cacamba.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/extensao.dart';
@@ -46,6 +47,32 @@ class FornecedorRepository {
     );
 
     return RelatorioFinanceiro.fromJson(parseMap(data) ?? const {});
+  }
+
+  /// Cerca virtual (círculo) do fornecedor.
+  Future<AreaAtendimento> areaAtendimento() async {
+    final data = await _api.get('/cacambeiros/me/area');
+    return AreaAtendimento.fromJson(parseMap(data) ?? const {});
+  }
+
+  /// [raioKm] de 1 a 200.
+  Future<AreaAtendimento> salvarAreaAtendimento({
+    required double latitude,
+    required double longitude,
+    required double raioKm,
+  }) async {
+    final data = await _api.put(
+      '/cacambeiros/me/area',
+      data: {'latitude': latitude, 'longitude': longitude, 'raio_km': raioKm},
+    );
+
+    return AreaAtendimento.fromJson(parseMap(data) ?? const {});
+  }
+
+  /// O que o fornecedor ainda precisa cadastrar (área e assinatura).
+  Future<PendenciasFornecedor> pendencias() async {
+    final data = await _api.get('/cacambeiros/me/pendencias');
+    return PendenciasFornecedor.fromJson(parseMap(data) ?? const {});
   }
 
   /// Todas as caçambas do fornecedor, inclusive as indisponíveis.

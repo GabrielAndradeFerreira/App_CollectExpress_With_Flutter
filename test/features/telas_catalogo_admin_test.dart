@@ -1,3 +1,4 @@
+import 'package:app_collect_express_with_flutter/core/models/area_atendimento.dart';
 import 'package:app_collect_express_with_flutter/core/navigation/app_routes.dart';
 import 'package:app_collect_express_with_flutter/core/network/api_client.dart';
 import 'package:app_collect_express_with_flutter/core/network/api_providers.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/fake_api.dart';
+import '../helpers/local_entrega_fake.dart';
 
 const _cacamba = {
   'id': 'c1',
@@ -47,6 +49,7 @@ Future<FakeApiAdapter> _abrir(
   Widget tela,
   FakeResponse Function(RequestOptions request) handler, {
   InMemoryTokenStorage? storage,
+  LocalEntrega? local = localDeTeste,
 }) async {
   // Telas compridas: evita itens fora da área visível no teste.
   tester.view.physicalSize = const Size(1200, 4000);
@@ -64,6 +67,7 @@ Future<FakeApiAdapter> _abrir(
         apiClientProvider.overrideWith(
           (ref) => ApiClient(storage: tokens, adapter: adapter),
         ),
+        localEntregaInicial(local),
       ],
       child: MaterialApp(
         home: tela,
@@ -102,6 +106,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(adapter.requests.last.queryParameters['tipo_residuo'], 'Madeira');
+    expect(adapter.requests.last.queryParameters['latitude'], -23.5614);
+    expect(adapter.requests.last.queryParameters['longitude'], -46.6559);
+    expect(adapter.requests.last.queryParameters['area'], 'dentro');
     expect(find.text('Caçamba Standard'), findsNothing);
     expect(find.text('Caçamba Madeira'), findsOneWidget);
   });

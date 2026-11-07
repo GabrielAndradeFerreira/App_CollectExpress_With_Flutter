@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../../../../core/widgets/app_menu_drawer.dart';
+import '../widgets/area_atendimento_card.dart';
 import '../widgets/assinatura_empresa_card.dart';
 
 import '../../../../core/widgets/app_bottom_navigation.dart';
@@ -119,6 +120,8 @@ class _PerfilLojaPageState extends State<PerfilLojaPage> {
                         validator: _requiredValidator,
                       ),
                       const SizedBox(height: 28),
+                      const AreaAtendimentoCard(),
+                      const SizedBox(height: 16),
                       const AssinaturaEmpresaCard(),
                       const SizedBox(height: 28),
                       const Text(
