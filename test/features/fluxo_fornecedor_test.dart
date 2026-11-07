@@ -1,8 +1,10 @@
+import 'package:app_collect_express_with_flutter/core/models/cacamba.dart';
 import 'package:app_collect_express_with_flutter/core/navigation/app_routes.dart';
 import 'package:app_collect_express_with_flutter/core/network/api_client.dart';
 import 'package:app_collect_express_with_flutter/core/network/api_providers.dart';
 import 'package:app_collect_express_with_flutter/features/admin/presentation/pages/cadastrar_cacamba_page.dart';
 import 'package:app_collect_express_with_flutter/features/admin/presentation/pages/gestao_usuarios_page.dart';
+import 'package:app_collect_express_with_flutter/features/admin/presentation/pages/minhas_cacambas_page.dart';
 import 'package:app_collect_express_with_flutter/features/admin/presentation/widgets/foto_cacamba_picker.dart';
 import 'package:app_collect_express_with_flutter/features/auth/presentation/pages/cadastro_fornecedor_page.dart';
 import 'dart:convert';
@@ -72,10 +74,6 @@ void main() {
       );
       await tester.enterText(_campo('Confirme sua senha'), 'Senha123');
       await tester.enterText(_campo('(11) 99999-9999'), '11988887777');
-      await tester.enterText(
-        _campo('Distância máxima atendida, de 1 a 200 km'),
-        '15',
-      );
       await tester.enterText(_campo('0,00'), '50,00');
 
       // Abre às 08:00 (padrão do relógio) e fecha às 20:00 (8 PM).
@@ -130,10 +128,10 @@ void main() {
         'telefone': '11988887777',
         'horario_inicio': '08:00',
         'horario_fim': '20:00',
-        'raio_entrega_km': 15,
         'taxa_entrega': 50,
       });
 
+      expect(find.text('Raio de Entrega (km)'), findsNothing);
       expect(find.text('Cadastro enviado!'), findsOneWidget);
       await tester.tap(find.text('Continuar'));
       await tester.pumpAndSettle();
@@ -558,6 +556,295 @@ void main() {
 
       expect(find.text('Selecione uma categoria cadastrada.'), findsOneWidget);
       expect(find.byType(CadastrarCacambaPage), findsOneWidget);
+    });
+  });
+
+  group('edição de caçamba', () {
+    final original = Cacamba.fromJson(const {
+      'id': 'c1',
+      'nome': 'Caçamba 5m³ - Entulho de Obra',
+      'tipo_residuo': 'Entulho de Obra',
+      'tamanho_m3': 5,
+      'preco_diaria': '150.00',
+      'foto_url': 'https://api.teste.com/uploads/cacambas/antiga.png',
+      'disponivel': true,
+      'permite_extensao': false,
+    });
+
+    final pngReal = Uint8List.fromList(
+      base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+      ),
+    );
+
+    FakeResponse Function(RequestOptions) api({FakeResponse? put}) {
+      return (request) {
+        if (request.method == 'PUT' && request.path == '/cacambas/c1') {
+          return put ??
+              const FakeResponse(200, {
+                'success': true,
+                'data': {'id': 'c1', 'nome': 'Caçamba'},
+              });
+        }
+        if (request.path == '/cacambas/minhas') {
+          return const FakeResponse(200, {'success': true, 'data': []});
+        }
+        if (request.path == '/cacambas') {
+          return const FakeResponse(200, {
+            'success': true,
+            'data': {
+              'items': [],
+              'pagination': {
+                'total': 0,
+                'page': 1,
+                'per_page': 20,
+                'total_pages': 1,
+              },
+            },
+          });
+        }
+        return _naoEncontrado;
+      };
+    }
+
+    Future<({FakeApiAdapter adapter, List<bool?> fechou})> abrirEdicao(
+      WidgetTester tester, {
+      Cacamba? cacamba,
+      FakeResponse? put,
+      Future<FotoSelecionada?> Function()? escolherFoto,
+    }) async {
+      final fechou = <bool?>[];
+
+      final adapter = await _abrir(
+        tester,
+        Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () async {
+                fechou.add(
+                  await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (_) => CadastrarCacambaPage(
+                        cacamba: cacamba ?? original,
+                        escolherFoto: escolherFoto ?? escolherFotoDaGaleria,
+                      ),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('abrir'),
+            ),
+          ),
+        ),
+        api(put: put),
+        storage: InMemoryTokenStorage(accessToken: 'jwt'),
+      );
+
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+
+      return (adapter: adapter, fechou: fechou);
+    }
+
+    Map<String, dynamic> corpoDoPut(FakeApiAdapter adapter) =>
+        sentBody(adapter.requests.singleWhere((r) => r.method == 'PUT'));
+
+    testWidgets('abre com os dados da caçamba preenchidos', (tester) async {
+      await abrirEdicao(tester);
+
+      expect(find.text('Editar Caçamba'), findsOneWidget);
+      expect(find.text('Salvar Alterações'), findsOneWidget);
+      expect(find.text('Publicar Caçamba'), findsNothing);
+
+      expect(find.widgetWithText(TextFormField, 'Entulho de Obra'), findsOne);
+      expect(find.widgetWithText(TextFormField, '150,00'), findsOne);
+      expect(
+        tester
+            .widget<SwitchListTile>(find.byKey(const Key('permite_extensao_switch')))
+            .value,
+        isFalse,
+      );
+
+      // Há foto salva, então dá para removê-la.
+      expect(
+        find.byKey(const Key('foto_cacamba_remover_atual')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('mudar só o preço envia só o preço', (tester) async {
+      final tela = await abrirEdicao(tester);
+
+      await tester.enterText(find.widgetWithText(TextFormField, '150,00'), '99,90');
+      await tester.tap(find.text('Salvar Alterações'));
+      await tester.pumpAndSettle();
+
+      expect(corpoDoPut(tela.adapter), {'preco_diaria': 99.9});
+      expect(tela.fechou, [true]);
+    });
+
+    testWidgets('mudar o volume atualiza também o nome', (tester) async {
+      final tela = await abrirEdicao(tester);
+
+      await tester.tap(find.text('7m³'));
+      await tester.tap(find.text('Salvar Alterações'));
+      await tester.pumpAndSettle();
+
+      expect(corpoDoPut(tela.adapter), {
+        'nome': 'Caçamba 7m³ - Entulho de Obra',
+        'tamanho_m3': 7,
+      });
+    });
+
+    testWidgets('ligar a extensão envia só permite_extensao', (tester) async {
+      final tela = await abrirEdicao(tester);
+
+      await tester.tap(find.byKey(const Key('permite_extensao_switch')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Salvar Alterações'));
+      await tester.pumpAndSettle();
+
+      expect(corpoDoPut(tela.adapter), {'permite_extensao': true});
+    });
+
+    testWidgets('trocar a foto envia a nova em base64', (tester) async {
+      final foto = FotoSelecionada(pngReal, 'image/png');
+      final tela = await abrirEdicao(tester, escolherFoto: () async => foto);
+
+      await tester.tap(find.byKey(const Key('foto_cacamba_escolher')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Salvar Alterações'));
+      await tester.pumpAndSettle();
+
+      expect(corpoDoPut(tela.adapter), {'foto_base64': foto.dataUri});
+    });
+
+    testWidgets('remover a foto atual manda foto_url nulo', (tester) async {
+      final tela = await abrirEdicao(tester);
+
+      await tester.tap(find.byKey(const Key('foto_cacamba_remover_atual')));
+      await tester.pumpAndSettle();
+
+      // O botão some e a imagem padrão volta.
+      expect(find.byKey(const Key('foto_cacamba_remover_atual')), findsNothing);
+
+      await tester.tap(find.text('Salvar Alterações'));
+      await tester.pumpAndSettle();
+
+      expect(corpoDoPut(tela.adapter), {'foto_url': null});
+    });
+
+    testWidgets('sem alterações, avisa e não chama a API', (tester) async {
+      final tela = await abrirEdicao(tester);
+
+      await tester.tap(find.text('Salvar Alterações'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nenhuma alteração para salvar.'), findsOneWidget);
+      expect(tela.adapter.requests.where((r) => r.method == 'PUT'), isEmpty);
+      expect(tela.fechou, isEmpty);
+      expect(find.byType(CadastrarCacambaPage), findsOneWidget);
+    });
+
+    testWidgets('volume fora do padrão aparece como opção', (tester) async {
+      await abrirEdicao(
+        tester,
+        cacamba: Cacamba.fromJson(const {
+          'id': 'c1',
+          'nome': 'Caçamba 4m³',
+          'tipo_residuo': 'Entulho de Obra',
+          'tamanho_m3': 4,
+          'preco_diaria': 100,
+        }),
+      );
+
+      expect(find.text('4m³'), findsOneWidget);
+      expect(find.text('3m³'), findsOneWidget);
+      expect(find.text('7m³'), findsOneWidget);
+    });
+
+    testWidgets('mostra no campo o erro que a API devolveu', (tester) async {
+      await abrirEdicao(
+        tester,
+        put: const FakeResponse(400, {
+          'success': false,
+          'message': 'A categoria informada não existe.',
+          'code': 'CATEGORY_NOT_FOUND',
+          'fields': {'tipo_residuo': 'Selecione uma categoria cadastrada.'},
+        }),
+      );
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Entulho de Obra'),
+        'Vidro',
+      );
+      await tester.tap(find.text('Salvar Alterações'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Selecione uma categoria cadastrada.'), findsOneWidget);
+      expect(find.byType(CadastrarCacambaPage), findsOneWidget);
+    });
+
+    testWidgets('na lista, o menu Editar abre a edição e atualiza a lista', (
+      tester,
+    ) async {
+      var listagens = 0;
+
+      final adapter = await _abrir(
+        tester,
+        const MinhasCacambasPage(),
+        (request) {
+          if (request.method == 'PUT' && request.path == '/cacambas/c1') {
+            return const FakeResponse(200, {
+              'success': true,
+              'data': {'id': 'c1', 'nome': 'Caçamba'},
+            });
+          }
+          if (request.path == '/cacambas/minhas') {
+            listagens++;
+            return const FakeResponse(200, {
+              'success': true,
+              'data': [
+                {
+                  'id': 'c1',
+                  'nome': 'Caçamba 5m³ - Entulho de Obra',
+                  'tipo_residuo': 'Entulho de Obra',
+                  'tamanho_m3': 5,
+                  'preco_diaria': '150.00',
+                  'disponivel': true,
+                  'permite_extensao': false,
+                },
+              ],
+            });
+          }
+          return api()(request);
+        },
+        storage: InMemoryTokenStorage(accessToken: 'jwt'),
+      );
+
+      await tester.tap(find.byTooltip('Opções'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Editar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Editar Caçamba'), findsOneWidget);
+
+      // A própria tela de edição também consulta as caçambas (sugestões).
+      final antesDeSalvar = listagens;
+
+      await tester.enterText(find.widgetWithText(TextFormField, '150,00'), '200');
+      await tester.tap(find.text('Salvar Alterações'));
+      await tester.pumpAndSettle();
+
+      expect(sentBody(adapter.requests.singleWhere((r) => r.method == 'PUT')), {
+        'preco_diaria': 200,
+      });
+      expect(find.text('Caçamba atualizada.'), findsOneWidget);
+      expect(
+        listagens,
+        greaterThan(antesDeSalvar),
+        reason: 'a lista é recarregada depois de salvar',
+      );
     });
   });
 }

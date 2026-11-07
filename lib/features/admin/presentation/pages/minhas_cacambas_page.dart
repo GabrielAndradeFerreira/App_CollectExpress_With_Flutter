@@ -11,15 +11,14 @@ import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/cacamba_image.dart';
 import '../../data/fornecedor_repository.dart';
 import '../fornecedor_providers.dart';
-import '../widgets/foto_cacamba_picker.dart';
 import 'cadastrar_cacamba_page.dart';
 
 import '../../../../core/widgets/app_bottom_navigation.dart';
 
 enum _AcaoCacamba {
+  editar,
   alternarDisponibilidade,
   alternarExtensao,
-  alterarFoto,
   excluir,
 }
 
@@ -62,14 +61,32 @@ class _MinhasCacambasPageState extends ConsumerState<MinhasCacambasPage> {
     );
   }
 
+  Future<void> _editar(Cacamba cacamba) async {
+    final salvou = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CadastrarCacambaPage(cacamba: cacamba),
+      ),
+    );
+
+    if (!mounted || salvou != true) return;
+
+    ref.invalidate(minhasCacambasProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Caçamba atualizada.'),
+        backgroundColor: AppColors.green,
+      ),
+    );
+  }
+
   Future<void> _onAcao(Cacamba cacamba, _AcaoCacamba acao) async {
     switch (acao) {
+      case _AcaoCacamba.editar:
+        await _editar(cacamba);
       case _AcaoCacamba.alternarDisponibilidade:
         await _alternarDisponibilidade(cacamba);
       case _AcaoCacamba.alternarExtensao:
         await _alternarExtensao(cacamba);
-      case _AcaoCacamba.alterarFoto:
-        await _alterarFoto(cacamba);
       case _AcaoCacamba.excluir:
         await _excluir(cacamba);
     }
@@ -121,52 +138,6 @@ class _MinhasCacambasPageState extends ConsumerState<MinhasCacambasPage> {
                 ? 'Extensão de aluguel ativada para esta caçamba.'
                 : 'Extensão de aluguel desativada para esta caçamba.',
           ),
-          backgroundColor: AppColors.green,
-        ),
-      );
-    } on ApiException catch (error) {
-      if (mounted) showApiError(context, error);
-    } finally {
-      if (mounted) setState(() => _processando.remove(cacamba.id));
-    }
-  }
-
-  Future<void> _alterarFoto(Cacamba cacamba) async {
-    FotoSelecionada? foto;
-
-    try {
-      foto = await escolherFotoDaGaleria();
-    } on FotoInvalidaException catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.mensagem)));
-      }
-      return;
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Não foi possível abrir a galeria de fotos.'),
-          ),
-        );
-      }
-      return;
-    }
-
-    if (foto == null || !mounted) return;
-
-    setState(() => _processando.add(cacamba.id));
-    try {
-      await ref
-          .read(fornecedorRepositoryProvider)
-          .atualizarCacamba(cacamba.id, fotoBase64: foto.dataUri);
-      if (!mounted) return;
-
-      ref.invalidate(minhasCacambasProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Foto atualizada.'),
           backgroundColor: AppColors.green,
         ),
       );
@@ -521,6 +492,10 @@ class _CacambaCard extends StatelessWidget {
                   icon: const Icon(Icons.more_vert, color: Colors.black54),
                   onSelected: onAcao,
                   itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: _AcaoCacamba.editar,
+                      child: Text('Editar'),
+                    ),
                     PopupMenuItem(
                       value: _AcaoCacamba.alternarDisponibilidade,
                       child: Text(
@@ -537,10 +512,7 @@ class _CacambaCard extends StatelessWidget {
                             : 'Permitir extensão do aluguel',
                       ),
                     ),
-                    const PopupMenuItem(
-                      value: _AcaoCacamba.alterarFoto,
-                      child: Text('Alterar foto'),
-                    ),
+
                     const PopupMenuItem(
                       value: _AcaoCacamba.excluir,
                       child: Text(

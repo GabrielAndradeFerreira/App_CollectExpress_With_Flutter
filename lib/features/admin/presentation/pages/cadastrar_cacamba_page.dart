@@ -44,12 +44,18 @@ final _categoriasConhecidasProvider = FutureProvider.autoDispose<List<String>>((
   }.toList()..sort();
 });
 
-/// Fecha com `true` quando a caçamba foi cadastrada.
+/// Cadastra uma caçamba nova ou, com [cacamba], edita uma existente.
+///
+/// Fecha com `true` quando a caçamba foi cadastrada ou atualizada.
 class CadastrarCacambaPage extends ConsumerStatefulWidget {
   const CadastrarCacambaPage({
     super.key,
+    this.cacamba,
     this.escolherFoto = escolherFotoDaGaleria,
   });
+
+  /// Caçamba que está sendo editada, ou `null` para cadastrar uma nova.
+  final Cacamba? cacamba;
 
   /// Abre a galeria. Os testes trocam por uma foto pronta.
   final Future<FotoSelecionada?> Function() escolherFoto;
@@ -60,7 +66,21 @@ class CadastrarCacambaPage extends ConsumerStatefulWidget {
 }
 
 class _CadastrarCacambaPageState extends ConsumerState<CadastrarCacambaPage> {
-  static const _volumes = [3.0, 5.0, 7.0];
+  static const _volumesPadrao = [3.0, 5.0, 7.0];
+
+  bool get _editando => widget.cacamba != null;
+
+  /// Volumes padrão, mais o da caçamba editada quando ele é diferente
+  /// (ex.: 4 m³ vindo de outro cadastro).
+  List<double> get _volumes {
+    final atual = widget.cacamba?.tamanhoM3;
+
+    if (atual == null || _volumesPadrao.contains(atual)) {
+      return _volumesPadrao;
+    }
+
+    return [..._volumesPadrao, atual]..sort();
+  }
 
   final _formKey = GlobalKey<FormState>();
   final _wasteController = TextEditingController();
@@ -74,6 +94,24 @@ class _CadastrarCacambaPageState extends ConsumerState<CadastrarCacambaPage> {
 
   /// O fornecedor aceita pedidos de extensão do aluguel desta caçamba.
   bool _permiteExtensao = false;
+
+  /// Na edição: apagar a foto que a caçamba já tem.
+  bool _removerFotoAtual = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final cacamba = widget.cacamba;
+    if (cacamba == null) return;
+
+    _wasteController.text = cacamba.tipoResiduo;
+    _priceController.text = cacamba.precoDiaria
+        .toStringAsFixed(2)
+        .replaceAll('.', ',');
+    _volume = cacamba.tamanhoM3;
+    _permiteExtensao = cacamba.permiteExtensao;
+  }
 
   /// Erros de validação devolvidos pela API, por campo.
   Map<String, String> _errosApi = const {};
@@ -107,18 +145,25 @@ class _CadastrarCacambaPageState extends ConsumerState<CadastrarCacambaPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Cadastrar Nova Caçamba',
-                          style: TextStyle(
+                        Text(
+                          _editando
+                              ? 'Editar Caçamba'
+                              : 'Cadastrar Nova Caçamba',
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.7,
                           ),
                         ),
                         const SizedBox(height: 4),
-                        const Text(
-                          'Insira as especificações para listar no app',
-                          style: TextStyle(color: Colors.black54, fontSize: 13),
+                        Text(
+                          _editando
+                              ? 'Altere o que precisar; só o que mudou é salvo'
+                              : 'Insira as especificações para listar no app',
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 13,
+                          ),
                         ),
                         const SizedBox(height: 30),
 
@@ -199,6 +244,16 @@ class _CadastrarCacambaPageState extends ConsumerState<CadastrarCacambaPage> {
                         FotoCacambaPicker(
                           escolher: widget.escolherFoto,
                           foto: _foto,
+                          fotoAtualUrl: _removerFotoAtual
+                              ? null
+                              : widget.cacamba?.fotoUrl,
+                          onRemoverAtual:
+                              _editando &&
+                                  !_removerFotoAtual &&
+                                  _foto == null &&
+                                  (widget.cacamba?.fotoUrl?.isNotEmpty ?? false)
+                              ? () => setState(() => _removerFotoAtual = true)
+                              : null,
                           tamanhoM3: _volume,
                           erro: _errosApi['foto_base64'] ?? _errosApi['foto_url'],
                           onChanged: (foto) => setState(() => _foto = foto),
@@ -237,7 +292,9 @@ class _CadastrarCacambaPageState extends ConsumerState<CadastrarCacambaPage> {
                           width: double.infinity,
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: _isLoading ? null : _publish,
+                            onPressed: _isLoading
+                                ? null
+                                : (_editando ? _salvarEdicao : _publish),
                             style: ElevatedButton.styleFrom(
                               elevation: 0,
                               backgroundColor: AppColors.green,
@@ -257,9 +314,11 @@ class _CadastrarCacambaPageState extends ConsumerState<CadastrarCacambaPage> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Text(
-                                    'Publicar Caçamba',
-                                    style: TextStyle(
+                                : Text(
+                                    _editando
+                                        ? 'Salvar Alterações'
+                                        : 'Publicar Caçamba',
+                                    style: const TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w800,
                                     ),
@@ -373,6 +432,68 @@ class _CadastrarCacambaPageState extends ConsumerState<CadastrarCacambaPage> {
     return double.tryParse(text);
   }
 
+
+  /// Envia só o que mudou. Se nada mudou, avisa e não chama a API.
+  Future<void> _salvarEdicao() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _errosApi = const {});
+
+    if (!_formKey.currentState!.validate()) return;
+
+    final original = widget.cacamba!;
+    final tipoResiduo = _wasteController.text.trim();
+    final preco = _parseDecimal(_priceController.text)!;
+
+    final tipoMudou = tipoResiduo != original.tipoResiduo.trim();
+    final volumeMudou = _volume != original.tamanhoM3;
+    final precoMudou = (preco - original.precoDiaria).abs() >= 0.005;
+    final extensaoMudou = _permiteExtensao != original.permiteExtensao;
+    final novaFoto = _foto;
+    final removerFoto = _removerFotoAtual && novaFoto == null;
+
+    if (!tipoMudou &&
+        !volumeMudou &&
+        !precoMudou &&
+        !extensaoMudou &&
+        novaFoto == null &&
+        !removerFoto) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhuma alteração para salvar.')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await ref
+          .read(fornecedorRepositoryProvider)
+          .atualizarCacamba(
+            original.id,
+            // O nome acompanha o volume e o tipo, como no cadastro.
+            nome: tipoMudou || volumeMudou
+                ? 'Caçamba ${formatVolume(_volume)} - $tipoResiduo'
+                : null,
+            tipoResiduo: tipoMudou ? tipoResiduo : null,
+            tamanhoM3: volumeMudou ? _volume : null,
+            precoDiaria: precoMudou ? preco : null,
+            fotoBase64: novaFoto?.dataUri,
+            removerFoto: removerFoto,
+            permiteExtensao: extensaoMudou ? _permiteExtensao : null,
+          );
+      if (!mounted) return;
+
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        if (error is ApiException) _errosApi = error.fields;
+      });
+      _formKey.currentState!.validate();
+      showApiError(context, error);
+    }
+  }
 
   Future<void> _publish() async {
     FocusScope.of(context).unfocus();

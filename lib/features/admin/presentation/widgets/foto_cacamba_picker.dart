@@ -104,6 +104,7 @@ class FotoCacambaPicker extends StatelessWidget {
     required this.tamanhoM3,
     this.fotoAtualUrl,
     this.escolher = escolherFotoDaGaleria,
+    this.onRemoverAtual,
     this.erro,
   });
 
@@ -120,6 +121,10 @@ class FotoCacambaPicker extends StatelessWidget {
 
   /// Troca em testes para não abrir a galeria de verdade.
   final Future<FotoSelecionada?> Function() escolher;
+
+  /// Mostra "Remover foto atual" quando a caçamba já tem uma foto salva
+  /// (edição). `null` esconde o botão.
+  final VoidCallback? onRemoverAtual;
 
   /// Erro devolvido pela API para o campo da foto.
   final String? erro;
@@ -194,6 +199,13 @@ class FotoCacambaPicker extends StatelessWidget {
                 key: const Key('foto_cacamba_remover'),
                 onPressed: () => onChanged(null),
                 child: const Text('Remover'),
+              ),
+            ] else if (onRemoverAtual != null) ...[
+              const SizedBox(width: 8),
+              TextButton(
+                key: const Key('foto_cacamba_remover_atual'),
+                onPressed: onRemoverAtual,
+                child: const Text('Remover foto atual'),
               ),
             ],
           ],
