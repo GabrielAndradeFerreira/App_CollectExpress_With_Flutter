@@ -160,12 +160,26 @@ class AppMenuDrawer extends ConsumerWidget {
                             _navigate(context, AppRoutes.supplierOrders),
                       ),
                     ],
-                    if (usuario?.isAdmin ?? false)
+                    if (usuario?.isAdmin ?? false) ...[
                       AppDrawerItem(
                         icon: Icons.admin_panel_settings_outlined,
                         title: 'PAINEL ADMIN',
                         selected: currentRoute == AppRoutes.adminHome,
                         onTap: () => _navigate(context, AppRoutes.adminHome),
+                      ),
+                      AppDrawerItem(
+                        icon: Icons.settings_outlined,
+                        title: 'CONFIGURAÇÕES',
+                        selected: currentRoute == AppRoutes.adminSettings,
+                        onTap: () => _navigate(context, AppRoutes.adminSettings),
+                      ),
+                    ],
+                    if (isLoggedIn)
+                      AppDrawerItem(
+                        icon: Icons.chat_bubble_outline,
+                        title: 'CONVERSAS',
+                        selected: currentRoute == AppRoutes.chat,
+                        onTap: () => _navigate(context, AppRoutes.chat),
                       ),
                     if (!isLoggedIn)
                       AppDrawerItem(

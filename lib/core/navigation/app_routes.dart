@@ -14,6 +14,9 @@ abstract final class AppRoutes {
   static const adminLogin = '/admin/login';
   static const adminRegister = '/admin/cadastro';
 
+  // Conversas (os três perfis)
+  static const chat = '/conversas';
+
   // Fornecedor de caçambas
   static const supplierHome = '/fornecedor/inicio';
   static const supplierDumpsters = '/fornecedor/cacambas';

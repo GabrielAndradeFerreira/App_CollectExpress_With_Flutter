@@ -8,6 +8,7 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../../../../core/widgets/app_menu_drawer.dart';
 import '../../../../core/widgets/async_value_view.dart';
+import '../../../chat/presentation/pages/chat_page.dart';
 import '../fornecedor_providers.dart';
 import '../widgets/pedido_fornecedor.dart';
 import 'detalhes_pedido_page.dart';
@@ -124,6 +125,7 @@ class _GestaoPedidosPageState extends ConsumerState<GestaoPedidosPage> {
                 atualizando: _atualizando.contains(pedido.id),
                 onTap: () => _openOrderDetails(pedido),
                 onAdvance: () => _avancarStatus(pedido),
+                onChat: () => abrirConversaDoPedido(context, ref, pedido.id),
               ),
               const SizedBox(height: 16),
             ],
@@ -247,17 +249,18 @@ class _OrderCard extends StatelessWidget {
   final bool atualizando;
   final VoidCallback onTap;
   final VoidCallback onAdvance;
+  final VoidCallback onChat;
 
   const _OrderCard({
     required this.order,
     required this.atualizando,
     required this.onTap,
     required this.onAdvance,
+    required this.onChat,
   });
 
   @override
   Widget build(BuildContext context) {
-    final telefone = order.consumidor?.telefone;
     final pagamento = order.statusPagamento?.label ?? '-';
 
     return Material(
@@ -291,13 +294,6 @@ class _OrderCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              if (telefone != null) ...[
-                Text(
-                  'Telefone: ${formatPhone(telefone)}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 7),
-              ],
               Text(
                 'Endereço: ${formatEnderecoPedido(order.endereco)}',
                 style: const TextStyle(color: Colors.black54, fontSize: 12),
@@ -318,6 +314,20 @@ class _OrderCard extends StatelessWidget {
               const Divider(color: AppColors.border),
               const SizedBox(height: 10),
               _buildActions(),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.center,
+                child: TextButton.icon(
+                  key: Key('pedido_chat_${order.id}'),
+                  onPressed: onChat,
+                  style: TextButton.styleFrom(foregroundColor: AppColors.green),
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                  label: const Text(
+                    'Conversar com o cliente',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
             ],
           ),
         ),

@@ -12,6 +12,7 @@ import '../../../../core/widgets/app_logo.dart';
 import '../../../../core/widgets/app_menu_drawer.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../auth/data/sessao_provider.dart';
+import '../../../chat/presentation/pages/chat_page.dart';
 import '../../data/pedidos_repository.dart';
 import '../pedidos_format.dart';
 import 'acompanhar_pedido_page.dart';
@@ -130,6 +131,7 @@ class _MeusPedidosPageState extends ConsumerState<MeusPedidosPage> {
             child: _OrderCard(
               pedido: pedido,
               onTrack: () => _abrirPedido(pedido),
+              onChat: () => abrirConversaDoPedido(context, ref, pedido.id),
             ),
           ),
         );
@@ -284,8 +286,13 @@ class _EmptyOrdersView extends StatelessWidget {
 class _OrderCard extends StatelessWidget {
   final Aluguel pedido;
   final VoidCallback onTrack;
+  final VoidCallback onChat;
 
-  const _OrderCard({required this.pedido, required this.onTrack});
+  const _OrderCard({
+    required this.pedido,
+    required this.onTrack,
+    required this.onChat,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -481,6 +488,22 @@ class _OrderCard extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                key: Key('pedido_chat_${pedido.id}'),
+                onPressed: onChat,
+                style: TextButton.styleFrom(foregroundColor: AppColors.green),
+                icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                label: const Text(
+                  'Conversar com a empresa',
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
             ),

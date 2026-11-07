@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/aluguel.dart';
@@ -17,6 +16,7 @@ import '../../../../core/widgets/cacamba_image.dart';
 import '../../../pedidos/data/pedidos_repository.dart';
 import '../../../pedidos/presentation/compartilhar_pdf.dart';
 import '../../../pedidos/presentation/widgets/contrato_extensao_cards.dart';
+import '../../../chat/presentation/pages/chat_page.dart';
 import '../../data/fornecedor_repository.dart';
 import '../fornecedor_providers.dart';
 import '../widgets/extensao_fornecedor_card.dart';
@@ -81,7 +81,6 @@ class _DetalhesPedidoPageState extends ConsumerState<DetalhesPedidoPage> {
 
   Widget _buildPedido(Aluguel pedido) {
     final proximo = pedido.statusAluguel?.proximo;
-    final telefone = pedido.consumidor?.telefone;
     final avaliacao = pedido.avaliacao;
 
     return Column(
@@ -161,27 +160,28 @@ class _DetalhesPedidoPageState extends ConsumerState<DetalhesPedidoPage> {
           ),
         ),
 
-        if (telefone != null) ...[
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: OutlinedButton(
-              onPressed: () => _copiarTelefone(telefone),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.green,
-                side: const BorderSide(color: AppColors.green),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Text(
-                'Copiar Telefone do Cliente',
-                style: TextStyle(fontWeight: FontWeight.w700),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: OutlinedButton.icon(
+            key: const Key('pedido_chat'),
+            onPressed: () =>
+                abrirConversaDoPedido(context, ref, widget.aluguelId),
+            icon: const Icon(Icons.chat_bubble_outline),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.green,
+              side: const BorderSide(color: AppColors.green),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
+            label: const Text(
+              'Conversar com o cliente',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
-        ],
+        ),
       ],
     );
   }
@@ -283,14 +283,6 @@ class _DetalhesPedidoPageState extends ConsumerState<DetalhesPedidoPage> {
     }
   }
 
-  Future<void> _copiarTelefone(String telefone) async {
-    await Clipboard.setData(ClipboardData(text: telefone));
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Telefone copiado: ${formatPhone(telefone)}')),
-    );
-  }
 }
 
 class _DetailsHeader extends StatelessWidget {
@@ -507,10 +499,6 @@ class _CustomerCard extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 14),
-          Text(
-            'Telefone: ${formatPhone(consumidor?.telefone)}',
-            style: const TextStyle(color: Colors.black54, fontSize: 12),
-          ),
           if (email != null) ...[
             const SizedBox(height: 14),
             Text(

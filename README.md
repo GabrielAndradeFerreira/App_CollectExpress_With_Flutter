@@ -15,6 +15,8 @@ Projeto acadêmico do Curso Superior de Tecnologia em Desenvolvimento de Softwar
 | URL da API pelo arquivo `.env` | flutter_dotenv |
 | Consulta de CEP (ViaCEP) | http |
 | Tipografia | google_fonts |
+| Mapa da área de atendimento (OpenStreetMap, gratuito) | flutter_map e latlong2 |
+| Links externos (atribuição do mapa) | url_launcher |
 
 ## Como rodar
 
@@ -40,6 +42,41 @@ flutter build apk --dart-define=API_URL=https://sua-api/api
 
 O nome antigo `API_BASE_URL` também é aceito no `--dart-define`.
 
+### APK de teste no celular Android
+
+O celular não enxerga o `localhost` do computador. Gere o APK apontando para a API publicada (https):
+
+```bash
+flutter build apk --release --dart-define=API_URL=https://sua-api.onrender.com/api
+```
+
+O arquivo sai em `build/app/outputs/flutter-apk/app-release.apk`. Para instalar, copie-o para o celular e
+permita "instalar apps de fontes desconhecidas". O APK usa a chave de depuração, então serve só para testes.
+A permissão `INTERNET` já está no manifesto principal.
+
+## Área de atendimento (cerca virtual)
+
+- **Fornecedor:** em *Perfil da loja > Área de atendimento* marca o centro no mapa (toque ou CEP da base) e
+  escolhe o raio de 1 a 200 km. Ao entrar no painel sem área ou sem assinatura, aparece um aviso (uma vez por sessão).
+- **Cliente:** o catálogo pede o CEP de entrega (ou usa o primeiro endereço salvo) e lista só as caçambas de
+  fornecedores que atendem o local. O botão *Ver caçambas fora da minha área* mostra as demais, sem aluguel:
+  só dá para ver o que o fornecedor oferece.
+- O mapa usa tiles públicos do OpenStreetMap, com a atribuição exigida. Para uso intenso, troque o provedor.
+- A API valida tudo de novo no checkout (`OUT_OF_SERVICE_AREA`). Rode `npm run migrate:area` na API antes.
+
+## Conversas (chat)
+
+Nova aba **Conversas** nos três perfis, com bolha de não lidas na aba e em cada conversa:
+
+- **Cliente:** um chat por pedido com a empresa ("Conversar com a empresa" em Meus pedidos e no acompanhamento) e
+  chamados com o suporte (botão *Novo chamado*; um aberto por vez, pedido opcional).
+- **Caçambeiro:** um chat por pedido recebido ("Conversar com o cliente") e a conversa com o suporte.
+- **Admin:** abas *Chamados*, *Fornecedores* e *Pedidos* (esta só leitura), busca, filtro de denunciadas e botão
+  para encerrar chamados. "Configurações" saiu da barra e foi para o menu lateral.
+
+Na conversa: voltar, nome do contato e menu (⋮) com *Ver dados do pedido* e *Denunciar conversa* (avisa os admins por e-mail).
+O app atualiza a conversa aberta a cada 5 s, a lista a cada 15 s e as bolhas a cada 30 s. Telefones não aparecem mais
+entre as partes. A API envia um e-mail a quem deixa mensagem sem ler por 8 horas. Rode `npm run migrate:chat` na API antes.
 ## Estrutura
 
 ```

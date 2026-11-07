@@ -190,7 +190,9 @@ class _ConfiguracoesAdminPageState extends State<ConfiguracoesAdminPage> {
           ],
         ),
       ),
-      bottomNavigationBar: const PlatformAdminBottomNavigation(currentIndex: 4),
+      bottomNavigationBar: const PlatformAdminBottomNavigation(
+        currentIndex: PlatformAdminBottomNavigation.semAba,
+      ),
     );
   }
 

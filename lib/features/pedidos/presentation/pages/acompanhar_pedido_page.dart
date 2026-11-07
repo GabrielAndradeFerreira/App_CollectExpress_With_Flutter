@@ -14,6 +14,7 @@ import '../../../../core/widgets/app_menu_drawer.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/cacamba_image.dart';
 import '../../../auth/data/sessao_provider.dart';
+import '../../../chat/presentation/pages/chat_page.dart';
 import '../../data/pedidos_repository.dart';
 import '../compartilhar_pdf.dart';
 import '../pedidos_format.dart';
@@ -120,7 +121,6 @@ class _AcompanharPedidoPageState extends ConsumerState<AcompanharPedidoPage> {
   Widget _buildPedido(Aluguel pedido, {required bool atualizando}) {
     final codigo = pedido.codigo;
     final fornecedor = pedido.cacambeiro;
-    final telefone = fornecedor?.telefone;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,9 +163,7 @@ class _AcompanharPedidoPageState extends ConsumerState<AcompanharPedidoPage> {
           const SizedBox(height: 20),
           _SupplierCard(
             contato: fornecedor,
-            onCopyPhone: telefone == null
-                ? null
-                : () => _copiar(telefone, 'Telefone do fornecedor copiado.'),
+            onChat: () => abrirConversaDoPedido(context, ref, pedido.id),
           ),
         ],
         if (pedido.statusAluguel == StatusAluguel.finalizado) ...[
@@ -794,9 +792,9 @@ class _ItemRow extends StatelessWidget {
 
 class _SupplierCard extends StatelessWidget {
   final ContatoPedido contato;
-  final VoidCallback? onCopyPhone;
+  final VoidCallback onChat;
 
-  const _SupplierCard({required this.contato, required this.onCopyPhone});
+  const _SupplierCard({required this.contato, required this.onChat});
 
   @override
   Widget build(BuildContext context) {
@@ -812,14 +810,6 @@ class _SupplierCard extends StatelessWidget {
           label: 'Nome',
           value: contato.nomeCompleto,
         ),
-        if (contato.telefone != null) ...[
-          const SizedBox(height: 14),
-          _InformationRow(
-            icon: Icons.phone_outlined,
-            label: 'Telefone',
-            value: formatPhone(contato.telefone),
-          ),
-        ],
         if (email != null) ...[
           const SizedBox(height: 14),
           _InformationRow(
@@ -838,29 +828,28 @@ class _SupplierCard extends StatelessWidget {
                 '${formatHour(contato.horarioFim)}',
           ),
         ],
-        if (onCopyPhone != null) ...[
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton.icon(
-              onPressed: onCopyPhone,
-              style: ElevatedButton.styleFrom(
-                elevation: 0,
-                backgroundColor: const Color(0xFF20C765),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(11),
-                ),
-              ),
-              icon: const Icon(Icons.copy_outlined),
-              label: const Text(
-                'Copiar telefone do fornecedor',
-                style: TextStyle(fontWeight: FontWeight.w800),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: ElevatedButton.icon(
+            key: const Key('pedido_chat'),
+            onPressed: onChat,
+            style: ElevatedButton.styleFrom(
+              elevation: 0,
+              backgroundColor: const Color(0xFF20C765),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(11),
               ),
             ),
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: const Text(
+              'Conversar com o fornecedor',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
           ),
-        ],
+        ),
       ],
     );
   }

@@ -5,7 +5,6 @@ import 'json_parsing.dart';
 class Cacambeiro {
   final String id;
   final String nomeCompleto;
-  final String? telefone;
   final String? horarioInicio;
   final String? horarioFim;
   final double? raioEntregaKm;
@@ -19,7 +18,6 @@ class Cacambeiro {
   const Cacambeiro({
     required this.id,
     required this.nomeCompleto,
-    this.telefone,
     this.horarioInicio,
     this.horarioFim,
     this.raioEntregaKm,
@@ -33,7 +31,6 @@ class Cacambeiro {
     return Cacambeiro(
       id: parseString(json['id']),
       nomeCompleto: parseString(json['nome_completo']),
-      telefone: parseStringOrNull(json['telefone']),
       horarioInicio: parseStringOrNull(json['horario_inicio']),
       horarioFim: parseStringOrNull(json['horario_fim']),
       raioEntregaKm: parseDoubleOrNull(json['raio_entrega_km']),

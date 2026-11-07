@@ -81,17 +81,9 @@ class Aluguel {
     final contrato = parseMap(json['contrato']);
     final extensao = parseMap(json['extensao']);
 
-    // No detalhe, contato e endereço vêm aninhados; na gestão de pedidos
-    // do fornecedor, achatados na linha.
-    final consumidor =
-        parseMap(json['consumidor']) ??
-        (json['consumidor_telefone'] != null
-            ? {
-                'id': json['consumidor_id'],
-                'nome_completo': json['consumidor_nome'],
-                'telefone': json['consumidor_telefone'],
-              }
-            : null);
+    // No detalhe, os dados das partes vêm aninhados; na gestão de pedidos
+    // do fornecedor, o endereço vem achatado na linha.
+    final consumidor = parseMap(json['consumidor']);
     final endereco =
         parseMap(json['endereco']) ??
         (json['logradouro'] != null
@@ -182,12 +174,12 @@ class ItemAluguel {
   }
 }
 
-/// Nome e contato de uma das partes do pedido.
+/// Nome e e-mail de uma das partes do pedido. O telefone não é divulgado:
+/// a conversa entre as partes acontece no chat.
 class ContatoPedido {
   final String id;
   final String nomeCompleto;
   final String? email;
-  final String? telefone;
 
   /// Só para o fornecedor.
   final String? horarioInicio;
@@ -197,7 +189,6 @@ class ContatoPedido {
     required this.id,
     required this.nomeCompleto,
     this.email,
-    this.telefone,
     this.horarioInicio,
     this.horarioFim,
   });
@@ -207,7 +198,6 @@ class ContatoPedido {
       id: parseString(json['id']),
       nomeCompleto: parseString(json['nome_completo']),
       email: parseStringOrNull(json['email']),
-      telefone: parseStringOrNull(json['telefone']),
       horarioInicio: parseStringOrNull(json['horario_inicio']),
       horarioFim: parseStringOrNull(json['horario_fim']),
     );

@@ -224,7 +224,6 @@ void main() {
       'status_pagamento': 'PENDENTE',
       'status_aluguel': 'AGUARDANDO_ENTREGA',
       'consumidor_nome': 'Cliente',
-      'consumidor_telefone': '11988887777',
       'logradouro': 'Av. Paulista',
       'numero': '1000',
       'bairro': 'Bela Vista',
@@ -234,7 +233,6 @@ void main() {
 
     expect(aluguel.precoFinal, 763);
     expect(aluguel.dataInicio, DateTime(2026, 10, 25));
-    expect(aluguel.consumidor!.telefone, '11988887777');
     expect(aluguel.consumidorNome, 'Cliente');
     expect(aluguel.endereco!.id, 'e1');
     expect(aluguel.endereco!.logradouro, 'Av. Paulista');

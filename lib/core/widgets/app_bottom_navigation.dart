@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/data/sessao_provider.dart';
+import '../../features/chat/presentation/chat_providers.dart';
 import '../models/enums.dart';
 import '../navigation/app_routes.dart';
 import '../theme/app_colors.dart';
@@ -58,7 +59,7 @@ class CustomerBottomNavigation extends ConsumerWidget {
       selectedItemColor: AppColors.green,
       unselectedItemColor: Colors.black54,
       onTap: (index) {
-        if (index == 3 && rotaPainel == null) {
+        if ((index == 3 && rotaPainel == null) || (index == 4 && perfil == null)) {
           Navigator.of(context).pushNamed(AppRoutes.login);
           return;
         }
@@ -68,6 +69,7 @@ class CustomerBottomNavigation extends ConsumerWidget {
           AppRoutes.services,
           rotaGestao,
           rotaPainel ?? AppRoutes.login,
+          AppRoutes.chat,
         ]);
       },
       items: [
@@ -91,6 +93,11 @@ class CustomerBottomNavigation extends ConsumerWidget {
           activeIcon: const Icon(Icons.person),
           label: labelPainel,
         ),
+        const BottomNavigationBarItem(
+          icon: IconeConversas(),
+          activeIcon: IconeConversas(ativo: true),
+          label: 'Conversas',
+        ),
       ],
     );
   }
@@ -106,6 +113,7 @@ class SupplierBottomNavigation extends StatelessWidget {
     AppRoutes.supplierDumpsters,
     AppRoutes.supplierOrders,
     AppRoutes.supplierProfile,
+    AppRoutes.chat,
   ];
 
   @override
@@ -139,13 +147,21 @@ class SupplierBottomNavigation extends StatelessWidget {
           activeIcon: Icon(Icons.person),
           label: 'Perfil',
         ),
+        BottomNavigationBarItem(
+          icon: IconeConversas(),
+          activeIcon: IconeConversas(ativo: true),
+          label: 'Conversas',
+        ),
       ],
     );
   }
 }
 
 class PlatformAdminBottomNavigation extends StatelessWidget {
+  /// Use [semAba] numa tela do admin que não é uma das abas (ex.: configurações).
   final int currentIndex;
+
+  static const semAba = -1;
 
   const PlatformAdminBottomNavigation({super.key, required this.currentIndex});
 
@@ -154,15 +170,17 @@ class PlatformAdminBottomNavigation extends StatelessWidget {
     AppRoutes.adminUsers,
     AppRoutes.adminPartners,
     AppRoutes.adminFinance,
-    AppRoutes.adminSettings,
+    AppRoutes.chat,
   ];
 
   @override
   Widget build(BuildContext context) {
+    final foraDasAbas = currentIndex == semAba;
+
     return BottomNavigationBar(
-      currentIndex: currentIndex,
+      currentIndex: foraDasAbas ? 0 : currentIndex,
       type: BottomNavigationBarType.fixed,
-      selectedItemColor: AppColors.green,
+      selectedItemColor: foraDasAbas ? Colors.black54 : AppColors.green,
       unselectedItemColor: Colors.black54,
       selectedFontSize: 11,
       unselectedFontSize: 11,
@@ -190,9 +208,9 @@ class PlatformAdminBottomNavigation extends StatelessWidget {
           label: 'Finanças',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.settings_outlined),
-          activeIcon: Icon(Icons.settings),
-          label: 'Config',
+          icon: IconeConversas(),
+          activeIcon: IconeConversas(ativo: true),
+          label: 'Conversas',
         ),
       ],
     );
@@ -243,6 +261,25 @@ class RecyclingBottomNavigation extends StatelessWidget {
           label: 'Perfil',
         ),
       ],
+    );
+  }
+}
+
+/// Ícone da aba de conversas, com a bolha de conversas não lidas.
+class IconeConversas extends ConsumerWidget {
+  final bool ativo;
+
+  const IconeConversas({super.key, this.ativo = false});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final total = ref.watch(naoLidasProvider).value?.conversas ?? 0;
+
+    return Badge(
+      isLabelVisible: total > 0,
+      label: Text(total > 99 ? '99+' : '$total'),
+      backgroundColor: const Color(0xFFE53935),
+      child: Icon(ativo ? Icons.chat_bubble : Icons.chat_bubble_outline),
     );
   }
 }

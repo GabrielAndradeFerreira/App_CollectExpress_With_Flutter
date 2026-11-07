@@ -37,6 +37,7 @@ import 'features/pedidos/presentation/pages/resumo_pedido_page.dart';
 import 'features/parceiros_reciclagem/presentation/pages/coletas_agendadas_page.dart';
 import 'features/parceiros_reciclagem/presentation/pages/parceiros_reciclagem_page.dart';
 
+import 'features/chat/presentation/pages/conversas_page.dart';
 import 'features/perfil/presentation/pages/perfil_cliente_page.dart';
 
 import 'features/institucional/presentation/pages/saiba_mais_page.dart';
@@ -79,6 +80,7 @@ class CollectApp extends StatelessWidget {
         AppRoutes.models: (_) => const DetalhesMaterialPage(),
         AppRoutes.customerOrders: (_) => const MeusPedidosPage(),
         AppRoutes.customerProfile: (_) => const PerfilClientePage(),
+        AppRoutes.chat: (_) => const ConversasPage(),
 
         // Autenticação
         AppRoutes.login: (_) => const LoginPage(),
