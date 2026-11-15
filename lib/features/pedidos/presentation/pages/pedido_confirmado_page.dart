@@ -237,10 +237,11 @@ class _PageHeader extends StatelessWidget {
           Builder(
             builder: (context) {
               return IconButton(
+                tooltip: 'Abrir menu',
                 onPressed: () => Scaffold.of(context).openEndDrawer(),
                 style: IconButton.styleFrom(
                   backgroundColor: AppColors.lightGray,
-                  minimumSize: const Size(46, 46),
+                  minimumSize: const Size(48, 48),
                 ),
                 icon: const Icon(Icons.menu_rounded),
               );

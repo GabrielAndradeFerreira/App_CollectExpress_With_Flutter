@@ -1,8 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'core/accessibility/tamanho_texto.dart';
+import 'core/logging/log_remoto.dart';
+import 'core/navigation/app_navigator.dart';
+import 'core/network/api_exception.dart';
+import 'core/network/api_providers.dart';
+import 'features/auth/data/sessao_provider.dart';
 import 'core/theme/app_colors.dart';
 import 'core/widgets/app_menu_drawer.dart';
 import 'core/navigation/app_routes.dart';
@@ -34,8 +41,12 @@ import 'features/admin/presentation/pages/relatorio_financeiro_page.dart';
 import 'features/admin/presentation/pages/configuracoes_admin_page.dart';
 
 import 'features/pedidos/presentation/pages/resumo_pedido_page.dart';
-import 'features/parceiros_reciclagem/presentation/pages/coletas_agendadas_page.dart';
-import 'features/parceiros_reciclagem/presentation/pages/parceiros_reciclagem_page.dart';
+import 'features/reciclagem/presentation/pages/coletas_page.dart';
+import 'features/reciclagem/presentation/pages/minhas_sinalizacoes_page.dart';
+import 'features/reciclagem/presentation/pages/ofertas_disponiveis_page.dart';
+import 'features/reciclagem/presentation/pages/parceiro_inicio_page.dart';
+import 'features/reciclagem/presentation/pages/perfil_parceiro_page.dart';
+import 'features/reciclagem/presentation/pages/reciclagem_landing_page.dart';
 
 import 'features/chat/presentation/pages/conversas_page.dart';
 import 'features/perfil/presentation/pages/perfil_cliente_page.dart';
@@ -57,7 +68,81 @@ Future<void> main() async {
     debugPrint('Aviso ao carregar .env: $e');
   }
 
-  runApp(const ProviderScope(retry: _semRetentativa, child: CollectApp()));
+  final container = ProviderContainer(retry: _semRetentativa);
+
+  _instalarCapturaDeErros(container);
+
+  // O plano gratuito do Render hiberna: acorda a API enquanto a pessoa
+  // ainda está olhando a tela inicial.
+  container
+      .read(apiClientProvider)
+      .get('/health', auth: false)
+      .then<void>((_) {}, onError: (_) {});
+
+  runApp(
+    UncontrolledProviderScope(container: container, child: const CollectApp()),
+  );
+}
+
+DateTime? _ultimoAvisoDeErro;
+
+/// Rede de segurança: erro que nenhuma tela tratou vira um aviso para a
+/// pessoa (em vez de a tela ficar parada sem explicação) e um registro em
+/// logs_erros. Também registra os overflows de layout, que aparecem com
+/// texto ampliado ou telas pequenas.
+void _instalarCapturaDeErros(ProviderContainer container) {
+  final apresentarOriginal = FlutterError.onError;
+
+  FlutterError.onError = (detalhes) {
+    apresentarOriginal?.call(detalhes);
+
+    try {
+      final texto = detalhes.exceptionAsString();
+      final overflow = texto.contains('overflowed');
+
+      container
+          .read(logRemotoProvider)
+          .registrar(
+            codigo: overflow ? 'LAYOUT_OVERFLOW' : 'FLUTTER_ERRO',
+            nivel: overflow ? 'AVISO' : 'ERRO',
+            mensagem: texto.split('\n').first,
+            detalhes: {
+              'biblioteca': detalhes.library,
+              'pilha': detalhes.stack?.toString().split('\n').take(8).join('\n'),
+            },
+          );
+    } catch (_) {
+      // Log nunca pode causar outro erro.
+    }
+  };
+
+  PlatformDispatcher.instance.onError = (erro, pilha) {
+    debugPrint('Erro não tratado: $erro\n$pilha');
+
+    try {
+      container
+          .read(logRemotoProvider)
+          .registrarErro(erro, pilha: pilha, acao: 'erro não tratado');
+    } catch (_) {}
+
+    final semAviso = erro is ApiException && erro.isUnauthorized;
+    final agora = DateTime.now();
+    final recente =
+        _ultimoAvisoDeErro != null &&
+        agora.difference(_ultimoAvisoDeErro!) < const Duration(seconds: 5);
+
+    if (!semAviso && !recente) {
+      _ultimoAvisoDeErro = agora;
+      AppNavigator.avisar(
+        erro is ApiException
+            ? erro.message
+            : 'Algo deu errado. Tente novamente.',
+        cor: Colors.red,
+      );
+    }
+
+    return true;
+  };
 }
 
 // Por padrão o Riverpod repete até 10 vezes um provider que falha. Para
@@ -65,13 +150,30 @@ Future<void> main() async {
 // mensagem; as telas mostram o erro com um botão "Tentar novamente".
 Duration? _semRetentativa(int retryCount, Object error) => null;
 
-class CollectApp extends StatelessWidget {
+class CollectApp extends ConsumerWidget {
   const CollectApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Sessão que acabou sozinha (token vencido): volta para o início em vez
+    // de deixar a pessoa numa tela de dados que não carrega mais.
+    ref.listen(sessaoExpiradaProvider, (_, _) {
+      AppNavigator.irParaInicio();
+      AppNavigator.avisar('Sua sessão expirou. Entre novamente para continuar.');
+    });
+
     return MaterialApp(
+      navigatorKey: AppNavigator.navigator,
+      scaffoldMessengerKey: AppNavigator.messenger,
       debugShowCheckedModeBanner: false,
+      // Aplica o tamanho de texto escolhido pela pessoa em todas as telas.
+      builder: (context, child) => Consumer(
+        builder: (context, ref, _) => aplicarTamanhoTexto(
+          context,
+          child,
+          ref.watch(tamanhoTextoProvider).fator,
+        ),
+      ),
       initialRoute: AppRoutes.home,
       routes: {
         // Cliente
@@ -103,10 +205,13 @@ class CollectApp extends StatelessWidget {
         AppRoutes.adminSettings: (_) => const ConfiguracoesAdminPage(),
 
         // Reciclagem
+        AppRoutes.recyclingLanding: (_) => const ReciclagemLandingPage(),
         AppRoutes.recyclingMaterials: (_) => const DetalhesMaterialPage(),
-        AppRoutes.recyclingPartners: (_) => const ParceirosReciclagemPage(),
-        AppRoutes.recyclingCollections: (_) => const ColetasAgendadasPage(),
-        AppRoutes.recyclingProfile: (_) => const LoginPage(),
+        AppRoutes.recyclingHome: (_) => const ParceiroInicioPage(),
+        AppRoutes.recyclingOffers: (_) => const OfertasDisponiveisPage(),
+        AppRoutes.recyclingMine: (_) => const MinhasSinalizacoesPage(),
+        AppRoutes.recyclingCollections: (_) => const ColetasPage(),
+        AppRoutes.recyclingProfile: (_) => const PerfilParceiroPage(),
 
         // Rotas legadas para compatibilidade
         // ('/login' e '/cadastro' já são AppRoutes.login e AppRoutes.register)
@@ -165,13 +270,14 @@ class Header extends StatelessWidget {
         children: [
           const Expanded(child: Logo()),
           Container(
-            width: 46,
-            height: 46,
+            width: 48,
+            height: 48,
             decoration: const BoxDecoration(
               color: AppColors.lightGray,
               borderRadius: BorderRadius.all(Radius.circular(16)),
             ),
             child: IconButton(
+              tooltip: 'Abrir menu',
               onPressed: () {
                 Scaffold.of(context).openEndDrawer();
               },
@@ -326,32 +432,36 @@ class WasteSection extends StatelessWidget {
         children: [
           const SectionTitle('O que você vai descartar?'),
           const SizedBox(height: 14),
-          Row(
-            children: const [
-              Expanded(
-                child: WasteCard(
-                  icon: Icons.grid_view_rounded,
-                  title: 'Entulho',
-                  subtitle: 'Obras e reformas',
+          // IntrinsicHeight: com o texto ampliado os cards crescem juntos.
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: const [
+                Expanded(
+                  child: WasteCard(
+                    icon: Icons.grid_view_rounded,
+                    title: 'Entulho',
+                    subtitle: 'Obras e reformas',
+                  ),
                 ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: WasteCard(
-                  icon: Icons.eco_outlined,
-                  title: 'Podas',
-                  subtitle: 'Galhos e jardinagem',
+                SizedBox(width: 8),
+                Expanded(
+                  child: WasteCard(
+                    icon: Icons.eco_outlined,
+                    title: 'Podas',
+                    subtitle: 'Galhos e jardinagem',
+                  ),
                 ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: WasteCard(
-                  icon: Icons.recycling_rounded,
-                  title: 'Recicláveis',
-                  subtitle: 'Papel, metal e plástico',
+                SizedBox(width: 8),
+                Expanded(
+                  child: WasteCard(
+                    icon: Icons.recycling_rounded,
+                    title: 'Recicláveis',
+                    subtitle: 'Papel, metal e plástico',
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -374,7 +484,7 @@ class WasteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 145,
+      constraints: const BoxConstraints(minHeight: 145),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.lightGray,
@@ -581,12 +691,14 @@ class SustainabilitySection extends StatelessWidget {
             children: [
               Icon(Icons.eco_outlined, color: AppColors.green),
               SizedBox(width: 8),
-              Text(
-                'Descarte Sustentável',
-                style: TextStyle(
-                  color: AppColors.green,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
+              Expanded(
+                child: Text(
+                  'Descarte Sustentável',
+                  style: TextStyle(
+                    color: AppColors.green,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -603,9 +715,11 @@ class SustainabilitySection extends StatelessWidget {
             children: const [
               Icon(Icons.phone_outlined, color: AppColors.yellow, size: 20),
               SizedBox(width: 8),
-              Text(
-                'Suporte WhatsApp: (11) 99999-9999',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              Expanded(
+                child: Text(
+                  'Suporte WhatsApp: (11) 99999-9999',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),

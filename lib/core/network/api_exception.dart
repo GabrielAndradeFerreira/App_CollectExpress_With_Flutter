@@ -26,6 +26,79 @@ class ApiException implements Exception {
 
   static const _defaultMessage = 'Não foi possível concluir a solicitação.';
 
+  /// Nomes de campo da API como a pessoa entende, para a mensagem de
+  /// "Dados inválidos" dizer o que conferir.
+  static const _rotulosDosCampos = {
+    'endereco_id': 'endereço',
+    'data_inicio': 'data de início',
+    'assinatura_base64': 'assinatura',
+    'aceite_termos': 'aceite dos termos',
+    'nome_completo': 'nome',
+    'email': 'e-mail',
+    'senha': 'senha',
+    'telefone': 'telefone',
+    'documento': 'documento',
+    'cep': 'CEP',
+    'logradouro': 'rua',
+    'numero': 'número',
+    'bairro': 'bairro',
+    'cidade_estado': 'cidade',
+    'horario_inicio': 'horário de abertura',
+    'horario_fim': 'horário de fechamento',
+    'taxa_entrega': 'taxa de entrega',
+    'quantidade': 'quantidade',
+    'dias_aluguel': 'dias de aluguel',
+    'cacamba_id': 'caçamba',
+    'descricao': 'descrição',
+    'quantidade_estimada': 'quantidade estimada',
+    'materiais_ids': 'materiais',
+    'janela_inicio': 'início da janela',
+    'janela_fim': 'fim da janela',
+    'data_agendada': 'data da retirada',
+    'responsavel_nome': 'responsável',
+    'endereco_coleta': 'endereço da empresa',
+    'texto': 'mensagem',
+  };
+
+  /// Diz quais campos conferir, no lugar de só "Dados inválidos". Com um
+  /// campo só, mostra a mensagem dele; sem campos, devolve [message].
+  static String _mensagemDeValidacao(
+    String message,
+    Map<String, String> fields,
+  ) {
+    if (fields.isEmpty) return message;
+
+    String rotulo(String campo) => _rotulosDosCampos[campo] ?? campo;
+
+    if (fields.length == 1) {
+      final entrada = fields.entries.first;
+
+      // A API cita o campo entre aspas simples: troca pelo nome amigável.
+      return entrada.value.replaceAll(
+        "'${entrada.key}'",
+        "'${rotulo(entrada.key)}'",
+      );
+    }
+
+    return '$message Confira: ${fields.keys.map(rotulo).join(', ')}.';
+  }
+
+  /// Mensagem para respostas sem texto da API (ex.: página de erro do
+  /// servidor ou do proxy).
+  static String _mensagemPorStatus(int? statusCode) {
+    return switch (statusCode) {
+      429 =>
+        'Muitas solicitações em pouco tempo. Aguarde um instante e tente '
+            'de novo.',
+      502 || 503 || 504 =>
+        'O servidor está indisponível no momento. Tente novamente em '
+            'instantes.',
+      final int status when status >= 500 =>
+        'O servidor encontrou um problema. Tente novamente em instantes.',
+      _ => _defaultMessage,
+    };
+  }
+
   bool get isUnauthorized => statusCode == 401;
 
   bool get isNetworkError => statusCode == null;
@@ -83,15 +156,25 @@ class ApiException implements Exception {
       }
     }
 
-    final message =
-        json['message']?.toString() ??
-        json['error']?.toString() ??
-        (fields.isNotEmpty ? fields.values.first : _defaultMessage);
+    final code = json['code']?.toString();
+    final apiMessage = json['message']?.toString() ?? json['error']?.toString();
+
+    final String message;
+
+    if (apiMessage == null) {
+      message = fields.isNotEmpty
+          ? fields.values.first
+          : _mensagemPorStatus(statusCode);
+    } else if (code == 'VALIDATION_ERROR' && fields.isNotEmpty) {
+      message = _mensagemDeValidacao(apiMessage, fields);
+    } else {
+      message = apiMessage;
+    }
 
     return ApiException(
       message,
       statusCode: statusCode,
-      code: json['code']?.toString(),
+      code: code,
       fields: fields,
     );
   }

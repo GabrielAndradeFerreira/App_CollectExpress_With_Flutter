@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/data/sessao_provider.dart';
+import '../accessibility/tamanho_texto.dart';
 import '../models/enums.dart';
 import '../models/usuario.dart';
 import '../navigation/app_routes.dart';
@@ -35,6 +36,7 @@ class AppMenuDrawer extends ConsumerWidget {
     return switch (usuario.tipoPerfil) {
       TipoPerfil.cacambeiro => AppRoutes.supplierHome,
       TipoPerfil.admin => AppRoutes.adminHome,
+      TipoPerfil.parceiro => AppRoutes.recyclingHome,
       _ => AppRoutes.customerProfile,
     };
   }
@@ -46,7 +48,12 @@ class AppMenuDrawer extends ConsumerWidget {
     final sessao = ref.read(sessaoProvider.notifier);
 
     navigator.pop();
-    await sessao.sair();
+
+    try {
+      await sessao.sair();
+    } catch (_) {
+      // sair() já apaga a sessão local mesmo se a API não responder.
+    }
 
     messenger.showSnackBar(
       const SnackBar(
@@ -54,7 +61,10 @@ class AppMenuDrawer extends ConsumerWidget {
         backgroundColor: Colors.black87,
       ),
     );
-    navigator.pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+
+    // Volta para a tela inicial (a página aberta pode ser de uma área que
+    // só existe com login).
+    navigator.pushNamedAndRemoveUntil(AppRoutes.home, (route) => false);
   }
 
   @override
@@ -137,6 +147,43 @@ class AppMenuDrawer extends ConsumerWidget {
                       selected: currentRoute == AppRoutes.models,
                       onTap: () => _navigate(context, AppRoutes.models),
                     ),
+                    if (usuario?.isParceiro ?? false) ...[
+                      AppDrawerItem(
+                        icon: Icons.recycling_outlined,
+                        title: 'MEU PAINEL',
+                        selected: currentRoute == AppRoutes.recyclingHome,
+                        onTap: () => _navigate(context, AppRoutes.recyclingHome),
+                      ),
+                      AppDrawerItem(
+                        icon: Icons.inventory_2_outlined,
+                        title: 'SINALIZAÇÕES',
+                        selected: currentRoute == AppRoutes.recyclingOffers,
+                        onTap: () =>
+                            _navigate(context, AppRoutes.recyclingOffers),
+                      ),
+                      AppDrawerItem(
+                        icon: Icons.calendar_month_outlined,
+                        title: 'MINHAS COLETAS',
+                        selected: currentRoute == AppRoutes.recyclingCollections,
+                        onTap: () =>
+                            _navigate(context, AppRoutes.recyclingCollections),
+                      ),
+                    ] else if (!(usuario?.isAdmin ?? false))
+                      AppDrawerItem(
+                        icon: Icons.recycling_outlined,
+                        title: usuario == null
+                            ? 'RECICLAGEM'
+                            : 'SINALIZAR MATERIAL',
+                        selected:
+                            currentRoute == AppRoutes.recyclingLanding ||
+                            currentRoute == AppRoutes.recyclingMine,
+                        onTap: () => _navigate(
+                          context,
+                          usuario == null
+                              ? AppRoutes.recyclingLanding
+                              : AppRoutes.recyclingMine,
+                        ),
+                      ),
                     if (usuario?.isConsumidor ?? false)
                       AppDrawerItem(
                         icon: Icons.receipt_long_outlined,
@@ -181,6 +228,16 @@ class AppMenuDrawer extends ConsumerWidget {
                         selected: currentRoute == AppRoutes.chat,
                         onTap: () => _navigate(context, AppRoutes.chat),
                       ),
+                    AppDrawerItem(
+                      icon: Icons.text_fields,
+                      title: 'TAMANHO DO TEXTO',
+                      onTap: () {
+                        // O context do drawer deixa de existir ao fechar.
+                        final navigator = Navigator.of(context);
+                        navigator.pop();
+                        mostrarTamanhoTexto(navigator.context);
+                      },
+                    ),
                     if (!isLoggedIn)
                       AppDrawerItem(
                         icon: Icons.login_outlined,
@@ -222,6 +279,7 @@ class _AccountCard extends StatelessWidget {
       TipoPerfil.admin => 'Administrador',
       TipoPerfil.cacambeiro => 'Fornecedor de Caçambas',
       TipoPerfil.consumidor => 'Cliente',
+      TipoPerfil.parceiro => 'Parceiro de Reciclagem',
       null => 'Usuário Conectado',
     };
   }

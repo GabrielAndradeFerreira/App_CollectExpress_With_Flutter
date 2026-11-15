@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../logging/log_remoto.dart';
 import '../navigation/app_routes.dart';
 import '../network/api_exception.dart';
 import '../theme/app_colors.dart';
@@ -43,11 +44,28 @@ class LoadingView extends StatelessWidget {
   }
 }
 
-class ErrorView extends StatelessWidget {
+class ErrorView extends StatefulWidget {
   const ErrorView({super.key, required this.error, this.onRetry});
 
   final Object error;
   final VoidCallback? onRetry;
+
+  @override
+  State<ErrorView> createState() => _ErrorViewState();
+}
+
+class _ErrorViewState extends State<ErrorView> {
+  Object get error => widget.error;
+  VoidCallback? get onRetry => widget.onRetry;
+
+  @override
+  void initState() {
+    super.initState();
+    // Uma tela que não carregou é um ponto de falha: relata uma vez.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) registrarErroDaTela(context, error, acao: 'carregar tela');
+    });
+  }
 
   bool get _semSessao =>
       error is ApiException && (error as ApiException).isUnauthorized;
@@ -98,8 +116,33 @@ class ErrorView extends StatelessWidget {
   }
 }
 
-/// Mostra o erro de uma ação (salvar, enviar...) num SnackBar vermelho.
-void showApiError(BuildContext context, Object error) {
+/// Envia o erro para a tabela de logs, com o nome da tela aberta. Não faz
+/// nada (e não falha) se o app não tiver o ProviderScope à mão.
+void registrarErroDaTela(
+  BuildContext context,
+  Object error, {
+  String? acao,
+}) {
+  try {
+    final container = ProviderScope.containerOf(context, listen: false);
+
+    container
+        .read(logRemotoProvider)
+        .registrarErro(
+          error,
+          tela: ModalRoute.of(context)?.settings.name,
+          acao: acao,
+        );
+  } catch (_) {
+    // Log nunca pode atrapalhar a tela.
+  }
+}
+
+/// Mostra o erro de uma ação (salvar, enviar...) num SnackBar vermelho e
+/// registra o erro em logs_erros.
+void showApiError(BuildContext context, Object error, {String? acao}) {
+  registrarErroDaTela(context, error, acao: acao);
+
   final message = error is ApiException
       ? error.message
       : 'Algo deu errado. Tente novamente.';

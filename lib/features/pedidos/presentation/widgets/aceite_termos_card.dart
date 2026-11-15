@@ -127,6 +127,7 @@ class AceiteTermosCard extends StatelessWidget {
                     ),
                     child: Image.memory(
                       assinatura!,
+                      semanticLabel: 'Prévia da sua assinatura',
                       key: const Key('aceite_termos_previa'),
                       fit: BoxFit.contain,
                     ),

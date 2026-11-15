@@ -53,9 +53,18 @@ class AgendarEntregaPage extends ConsumerStatefulWidget {
 }
 
 class _AgendarEntregaPageState extends ConsumerState<AgendarEntregaPage> {
-  // A API aceita início entre 1 e 60 dias a partir de hoje.
-  late final DateTime _primeiraData;
-  late final DateTime _ultimaData;
+  // A API aceita início entre 1 e 60 dias a partir de hoje (dia de
+  // Brasília). Calculado a cada uso: com a tela aberta de um dia para o
+  // outro, uma data fixada na abertura passava a ser recusada.
+  DateTime get _primeiraData {
+    final hoje = DateUtils.dateOnly(DateTime.now());
+    return DateTime(hoje.year, hoje.month, hoje.day + 1);
+  }
+
+  DateTime get _ultimaData {
+    final hoje = DateUtils.dateOnly(DateTime.now());
+    return DateTime(hoje.year, hoje.month, hoje.day + 60);
+  }
 
   /// Primeiro dia do mês mostrado no calendário.
   late DateTime _mes;
@@ -71,9 +80,6 @@ class _AgendarEntregaPageState extends ConsumerState<AgendarEntregaPage> {
   @override
   void initState() {
     super.initState();
-    final hoje = DateUtils.dateOnly(DateTime.now());
-    _primeiraData = DateTime(hoje.year, hoje.month, hoje.day + 1);
-    _ultimaData = DateTime(hoje.year, hoje.month, hoje.day + 60);
     _mes = DateTime(_primeiraData.year, _primeiraData.month);
   }
 
@@ -443,6 +449,35 @@ class _AgendarEntregaPageState extends ConsumerState<AgendarEntregaPage> {
       return;
     }
 
+    // A tela pode ter ficado aberta de um dia para o outro: confere de novo
+    // antes de mandar, em vez de levar um 400 da API.
+    if (dataInicio.isBefore(_primeiraData) || dataInicio.isAfter(_ultimaData)) {
+      setState(() => _dataInicio = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'A data escolhida não está mais disponível. Escolha uma data '
+            'entre ${formatDate(_primeiraData)} e ${formatDate(_ultimaData)}.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (endereco.id.isEmpty) {
+      ref.invalidate(_enderecosProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível identificar o endereço. Escolha-o de novo.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _enviando = true);
 
     try {
@@ -471,14 +506,35 @@ class _AgendarEntregaPageState extends ConsumerState<AgendarEntregaPage> {
     } on ApiException catch (error) {
       if (!mounted) return;
 
-      showApiError(context, error);
+      showApiError(context, error, acao: 'confirmar pedido');
 
       switch (error.code) {
         case 'EMPTY_CART' || 'CHECKOUT_FAILED':
           ref.invalidate(carrinhoProvider);
         case 'ADDRESS_NOT_FOUND':
           ref.invalidate(_enderecosProvider);
+        case 'INVALID_START_DATE':
+          // A pessoa precisa escolher outra data.
+          setState(() => _dataInicio = null);
+        case 'INVALID_IMAGE':
+          // A assinatura foi recusada: pede para assinar de novo.
+          setState(() => _assinatura = null);
+        case 'VALIDATION_ERROR':
+          if (error.fields.containsKey('data_inicio')) {
+            setState(() => _dataInicio = null);
+          }
+          if (error.fields.containsKey('assinatura_base64') ||
+              error.fields.containsKey('aceite_termos')) {
+            setState(() => _assinatura = null);
+          }
+          if (error.fields.containsKey('endereco_id')) {
+            ref.invalidate(_enderecosProvider);
+          }
       }
+    } catch (error) {
+      // Qualquer outra falha (ex.: resposta fora do esperado) também
+      // precisa de aviso: antes a tela ficava parada sem explicação.
+      if (mounted) showApiError(context, error, acao: 'confirmar pedido');
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
@@ -533,10 +589,11 @@ class _PageHeader extends StatelessWidget {
         Builder(
           builder: (context) {
             return IconButton(
+              tooltip: 'Abrir menu',
               onPressed: () => Scaffold.of(context).openEndDrawer(),
               style: IconButton.styleFrom(
                 backgroundColor: AppColors.lightGray,
-                minimumSize: const Size(46, 46),
+                minimumSize: const Size(48, 48),
               ),
               icon: const Icon(Icons.menu_rounded),
             );

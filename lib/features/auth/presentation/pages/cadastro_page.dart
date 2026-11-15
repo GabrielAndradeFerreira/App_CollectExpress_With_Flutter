@@ -127,6 +127,9 @@ class _CadastroPageState extends State<CadastroPage> {
                         decoration: _inputDecoration(
                           hintText: 'Digite sua senha de acesso',
                           suffixIcon: IconButton(
+                            tooltip: obscurePassword
+                                ? 'Mostrar senha'
+                                : 'Ocultar senha',
                             onPressed: () {
                               setState(() {
                                 obscurePassword = !obscurePassword;

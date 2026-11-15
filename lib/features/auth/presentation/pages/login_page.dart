@@ -139,8 +139,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 17),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      // Wrap: com o texto ampliado a frase passa para a linha de baixo.
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           const Text(
                             'Ainda não tem uma conta? ',
@@ -150,9 +152,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             onPressed: _openRegistration,
                             style: TextButton.styleFrom(
                               foregroundColor: const Color(0xFF267A2D),
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              minimumSize: const Size(48, 48),
                             ),
                             child: const Text(
                               'Cadastre-se',
@@ -301,7 +301,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       );
       _irParaAreaDoPerfil(usuario);
     } on ApiException catch (error) {
-      if (mounted) showApiError(context, error);
+      if (mounted) showApiError(context, error, acao: 'entrar');
+    } catch (error) {
+      // Resposta fora do esperado: avisa em vez de a tela ficar parada.
+      if (mounted) showApiError(context, error, acao: 'entrar');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -320,6 +323,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final rota = switch (usuario.tipoPerfil) {
       TipoPerfil.cacambeiro => AppRoutes.supplierHome,
       TipoPerfil.admin => AppRoutes.adminHome,
+      TipoPerfil.parceiro => AppRoutes.recyclingHome,
       _ => AppRoutes.home,
     };
     navigator.pushNamedAndRemoveUntil(rota, (_) => false);

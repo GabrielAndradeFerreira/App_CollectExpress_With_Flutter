@@ -13,6 +13,7 @@ import '../../data/chat_repository.dart';
 import '../chat_formatos.dart';
 import '../chat_providers.dart';
 import '../widgets/bolha_mensagem.dart';
+import '../widgets/dados_coleta_sheet.dart';
 import '../widgets/dados_pedido_sheet.dart';
 
 /// De quanto em quanto tempo a conversa aberta busca mensagens novas.
@@ -20,7 +21,7 @@ const intervaloDaConversa = Duration(seconds: 5);
 
 const _limiteDoTexto = 1000;
 
-enum _Acao { verPedido, denunciar, fecharChamado, resolverDenuncia }
+enum _Acao { verPedido, verColeta, denunciar, fecharChamado, resolverDenuncia }
 
 /// Abre a conversa e, quando a pessoa volta, atualiza lista e bolhas.
 Future<void> abrirConversa(
@@ -34,6 +35,24 @@ Future<void> abrirConversa(
 
   ref.invalidate(conversasProvider);
   ref.invalidate(naoLidasProvider);
+}
+
+/// Abre a conversa da coleta de reciclagem (cria se for a primeira vez).
+Future<void> abrirConversaDaColeta(
+  BuildContext context,
+  WidgetRef ref,
+  String coletaId,
+) async {
+  try {
+    final conversa = await ref
+        .read(chatRepositoryProvider)
+        .conversaDaColeta(coletaId);
+
+    if (!context.mounted) return;
+    await abrirConversa(context, ref, conversa);
+  } on ApiException catch (erro) {
+    if (context.mounted) showApiError(context, erro);
+  }
 }
 
 /// Abre a conversa do pedido (cria se for a primeira vez).
@@ -228,6 +247,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     switch (acao) {
       case _Acao.verPedido:
         await _verPedido();
+      case _Acao.verColeta:
+        await _verColeta();
       case _Acao.denunciar:
         await _denunciar();
       case _Acao.fecharChamado:
@@ -257,6 +278,28 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     await mostrarDadosDoPedido(context, pedido);
+  }
+
+  Future<void> _verColeta() async {
+    var coleta = _conversa.coleta;
+
+    try {
+      coleta ??= (await _repositorio.detalhe(_conversa.id)).coleta;
+    } on ApiException catch (erro) {
+      if (mounted) showApiError(context, erro);
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (coleta == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Esta conversa não tem coleta.')),
+      );
+      return;
+    }
+
+    await mostrarDadosDaColeta(context, coleta);
   }
 
   Future<void> _denunciar() async {
@@ -349,6 +392,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   value: _Acao.verPedido,
                   child: Text('Ver dados do pedido'),
                 ),
+              if (_conversa.temColeta)
+                const PopupMenuItem(
+                  value: _Acao.verColeta,
+                  child: Text('Ver dados da coleta'),
+                ),
               if (admin && _conversa.ehChamado && _conversa.aberta)
                 const PopupMenuItem(
                   value: _Acao.fecharChamado,
@@ -382,7 +430,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             const _Aviso(
               texto:
                   'Você está acompanhando esta conversa. Administradores só '
-                  'leem os chats de pedidos.',
+                  'leem os chats de pedidos e coletas.',
               cor: Color(0xFFFFF6E5),
               icone: Icons.visibility_outlined,
             ),
@@ -531,7 +579,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               style: IconButton.styleFrom(
                 backgroundColor: AppColors.green,
                 foregroundColor: Colors.white,
-                minimumSize: const Size(46, 46),
+                minimumSize: const Size(48, 48),
               ),
               icon: _enviando
                   ? const SizedBox(

@@ -25,7 +25,8 @@ const intervaloDaLista = Duration(seconds: 15);
 ///
 /// - Cliente: chats dos pedidos e chamados com o suporte.
 /// - Caçambeiro: chats dos pedidos e a conversa com o suporte.
-/// - Admin: chamados, fornecedores e (só leitura) pedidos.
+/// - Parceiro de reciclagem: chats das coletas.
+/// - Admin: chamados, fornecedores e (só leitura) pedidos e coletas.
 class ConversasPage extends ConsumerStatefulWidget {
   const ConversasPage({super.key});
 
@@ -55,6 +56,9 @@ class _ConversasPageState extends ConsumerState<ConversasPage> {
     return switch (usuario?.tipoPerfil) {
       TipoPerfil.cacambeiro => const SupplierBottomNavigation(currentIndex: 4),
       TipoPerfil.admin => const PlatformAdminBottomNavigation(currentIndex: 4),
+      TipoPerfil.parceiro => const RecyclingBottomNavigation(
+        aba: AbaReciclagem.conversas,
+      ),
       _ => const CustomerBottomNavigation(currentIndex: 4),
     };
   }
@@ -82,7 +86,7 @@ class _ConversasPageState extends ConsumerState<ConversasPage> {
     } else if (usuario.isAdmin) {
       corpo = const _ConversasDoAdmin();
     } else {
-      corpo = _ConversasDoUsuario(consumidor: usuario.isConsumidor);
+      corpo = _ConversasDoUsuario(perfil: usuario.tipoPerfil);
     }
 
     return Scaffold(
@@ -132,7 +136,7 @@ class _Cabecalho extends StatelessWidget {
                 onPressed: () => Scaffold.of(scaffoldContext).openEndDrawer(),
                 style: IconButton.styleFrom(
                   backgroundColor: AppColors.lightGray,
-                  minimumSize: const Size(46, 46),
+                  minimumSize: const Size(48, 48),
                 ),
                 icon: const Icon(Icons.menu_rounded),
               ),
@@ -180,9 +184,9 @@ class _SemLogin extends StatelessWidget {
 
 /// Cliente e caçambeiro: uma lista só, com filtro por tipo.
 class _ConversasDoUsuario extends StatefulWidget {
-  const _ConversasDoUsuario({required this.consumidor});
+  const _ConversasDoUsuario({required this.perfil});
 
-  final bool consumidor;
+  final TipoPerfil? perfil;
 
   @override
   State<_ConversasDoUsuario> createState() => _ConversasDoUsuarioState();
@@ -194,49 +198,59 @@ class _ConversasDoUsuarioState extends State<_ConversasDoUsuario> {
 
   @override
   Widget build(BuildContext context) {
-    final suporte = widget.consumidor
+    final consumidor = widget.perfil == TipoPerfil.consumidor;
+    final parceiro = widget.perfil == TipoPerfil.parceiro;
+    final suporte = consumidor
         ? TipoConversa.chamado
         : TipoConversa.suporteCacambeiro;
 
+    // O parceiro só tem chats de coleta: não precisa de filtro.
     final filtros = <(String, TipoConversa?)>[
-      ('Todas', null),
-      ('Pedidos', TipoConversa.pedido),
-      (widget.consumidor ? 'Chamados' : 'Suporte', suporte),
+      if (!parceiro) ...[
+        ('Todas', null),
+        ('Pedidos', TipoConversa.pedido),
+        ('Coletas', TipoConversa.coleta),
+        (consumidor ? 'Chamados' : 'Suporte', suporte),
+      ],
     ];
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Wrap(
-              spacing: 8,
-              children: [
-                for (final (rotulo, tipo) in filtros)
-                  ChoiceChip(
-                    label: Text(rotulo),
-                    selected: _tipo == tipo,
-                    showCheckmark: false,
-                    onSelected: (_) => setState(() => _tipo = tipo),
-                    selectedColor: AppColors.green,
-                    backgroundColor: AppColors.lightGray,
-                    side: BorderSide.none,
-                    labelStyle: TextStyle(
-                      color: _tipo == tipo ? Colors.white : Colors.black54,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
+        if (filtros.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: 8,
+                children: [
+                  for (final (rotulo, tipo) in filtros)
+                    ChoiceChip(
+                      label: Text(rotulo),
+                      selected: _tipo == tipo,
+                      showCheckmark: false,
+                      onSelected: (_) => setState(() => _tipo = tipo),
+                      selectedColor: AppColors.green,
+                      backgroundColor: AppColors.lightGray,
+                      side: BorderSide.none,
+                      labelStyle: TextStyle(
+                        color: _tipo == tipo ? Colors.white : Colors.black54,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
         Expanded(
           child: ListaDeConversas(
             key: ValueKey(_tipo),
             tipo: _tipo,
-            textoVazio: widget.consumidor
+            textoVazio: parceiro
+                ? 'Suas conversas aparecem aqui. Cada coleta agendada tem um '
+                      'chat com quem vai entregar o material.'
+                : consumidor
                 ? 'Suas conversas aparecem aqui. Depois de um pedido você '
                       'fala com o fornecedor por este chat, e pode abrir um '
                       'chamado com o suporte.'
@@ -274,10 +288,12 @@ class _ConversasDoAdminState extends State<_ConversasDoAdmin> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Column(
         children: [
           const TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             labelColor: AppColors.green,
             indicatorColor: AppColors.green,
             unselectedLabelColor: Colors.black54,
@@ -285,6 +301,7 @@ class _ConversasDoAdminState extends State<_ConversasDoAdmin> {
               Tab(text: 'Chamados'),
               Tab(text: 'Fornecedores'),
               Tab(text: 'Pedidos'),
+              Tab(text: 'Coletas'),
             ],
           ),
           Padding(
@@ -399,6 +416,15 @@ class _ConversasDoAdminState extends State<_ConversasDoAdmin> {
                   denunciadas: _denunciadas,
                   textoVazio:
                       'Nenhuma conversa de pedido com mensagens. Você só '
+                      'acompanha essas conversas, sem escrever.',
+                ),
+                ListaDeConversas(
+                  key: ValueKey(('coletas', _termo, _denunciadas)),
+                  tipo: TipoConversa.coleta,
+                  busca: _termo,
+                  denunciadas: _denunciadas,
+                  textoVazio:
+                      'Nenhuma conversa de coleta com mensagens. Você só '
                       'acompanha essas conversas, sem escrever.',
                 ),
               ],

@@ -44,6 +44,12 @@ class CustomerBottomNavigation extends ConsumerWidget {
         'Admin',
         AppRoutes.adminHome,
       ),
+      TipoPerfil.parceiro => (
+        'Coletas',
+        AppRoutes.recyclingCollections,
+        'Reciclagem',
+        AppRoutes.recyclingHome,
+      ),
       TipoPerfil.consumidor => (
         'Pedidos',
         AppRoutes.customerOrders,
@@ -217,54 +223,107 @@ class PlatformAdminBottomNavigation extends StatelessWidget {
   }
 }
 
-class RecyclingBottomNavigation extends StatelessWidget {
-  final int currentIndex;
+/// Abas da área de reciclagem. Cada perfil mostra as que fazem sentido
+/// para ele (veja [RecyclingBottomNavigation]).
+enum AbaReciclagem { inicio, sinalizacoes, coletas, conversas, perfil }
 
-  const RecyclingBottomNavigation({super.key, required this.currentIndex});
+/// Barra da área de reciclagem.
+///
+/// - Parceiro: Início, Sinalizações (vitrine), Coletas, Conversas e Perfil.
+/// - Cliente e caçambeiro: Materiais, Minhas sinalizações, Coletas e
+///   Conversas.
+class RecyclingBottomNavigation extends ConsumerWidget {
+  final AbaReciclagem aba;
 
-  static const routes = [
-    AppRoutes.recyclingMaterials,
-    AppRoutes.recyclingPartners,
-    AppRoutes.recyclingCollections,
-    AppRoutes.recyclingProfile,
-  ];
+  const RecyclingBottomNavigation({super.key, required this.aba});
 
   @override
-  Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: currentIndex,
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: AppColors.green,
-      unselectedItemColor: Colors.black54,
-      onTap: (index) {
-        _navigateToTab(context, index, currentIndex, routes);
-      },
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.recycling_outlined),
-          activeIcon: Icon(Icons.recycling),
-          label: 'Materiais',
+  Widget build(BuildContext context, WidgetRef ref) {
+    final parceiro =
+        ref.watch(sessaoProvider).value?.tipoPerfil == TipoPerfil.parceiro;
+
+    final itens = <(AbaReciclagem, String, String, BottomNavigationBarItem)>[
+      if (parceiro)
+        (
+          AbaReciclagem.inicio,
+          AppRoutes.recyclingHome,
+          'Início',
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Início',
+          ),
+        )
+      else
+        (
+          AbaReciclagem.inicio,
+          AppRoutes.recyclingMaterials,
+          'Materiais',
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.recycling_outlined),
+            activeIcon: Icon(Icons.recycling),
+            label: 'Materiais',
+          ),
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.handshake_outlined),
-          activeIcon: Icon(Icons.handshake),
-          label: 'Parceiros',
+      (
+        AbaReciclagem.sinalizacoes,
+        parceiro ? AppRoutes.recyclingOffers : AppRoutes.recyclingMine,
+        'Sinalizações',
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.inventory_2_outlined),
+          activeIcon: Icon(Icons.inventory_2),
+          label: 'Sinalizações',
         ),
-        BottomNavigationBarItem(
+      ),
+      (
+        AbaReciclagem.coletas,
+        AppRoutes.recyclingCollections,
+        'Coletas',
+        const BottomNavigationBarItem(
           icon: Icon(Icons.calendar_month_outlined),
           activeIcon: Icon(Icons.calendar_month),
           label: 'Coletas',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline),
-          activeIcon: Icon(Icons.person),
-          label: 'Perfil',
+      ),
+      (
+        AbaReciclagem.conversas,
+        AppRoutes.chat,
+        'Conversas',
+        const BottomNavigationBarItem(
+          icon: IconeConversas(),
+          activeIcon: IconeConversas(ativo: true),
+          label: 'Conversas',
         ),
-      ],
+      ),
+      if (parceiro)
+        (
+          AbaReciclagem.perfil,
+          AppRoutes.recyclingProfile,
+          'Perfil',
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Perfil',
+          ),
+        ),
+    ];
+
+    final atual = itens.indexWhere((item) => item.$1 == aba);
+
+    return BottomNavigationBar(
+      currentIndex: atual < 0 ? 0 : atual,
+      type: BottomNavigationBarType.fixed,
+      selectedItemColor: AppColors.green,
+      unselectedItemColor: Colors.black54,
+      onTap: (index) {
+        _navigateToTab(context, index, atual, [
+          for (final item in itens) item.$2,
+        ]);
+      },
+      items: [for (final item in itens) item.$4],
     );
   }
 }
-
 /// Ícone da aba de conversas, com a bolha de conversas não lidas.
 class IconeConversas extends ConsumerWidget {
   final bool ativo;
@@ -275,11 +334,16 @@ class IconeConversas extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final total = ref.watch(naoLidasProvider).value?.conversas ?? 0;
 
-    return Badge(
-      isLabelVisible: total > 0,
-      label: Text(total > 99 ? '99+' : '$total'),
-      backgroundColor: const Color(0xFFE53935),
-      child: Icon(ativo ? Icons.chat_bubble : Icons.chat_bubble_outline),
+    return Semantics(
+      label: total == 0
+          ? null
+          : (total == 1 ? '1 conversa não lida' : '$total conversas não lidas'),
+      child: Badge(
+        isLabelVisible: total > 0,
+        label: ExcludeSemantics(child: Text(total > 99 ? '99+' : '$total')),
+        backgroundColor: const Color(0xFFE53935),
+        child: Icon(ativo ? Icons.chat_bubble : Icons.chat_bubble_outline),
+      ),
     );
   }
 }

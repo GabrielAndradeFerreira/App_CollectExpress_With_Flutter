@@ -55,7 +55,7 @@ class _PageHeader extends StatelessWidget {
             },
             style: IconButton.styleFrom(
               foregroundColor: Colors.black,
-              minimumSize: const Size(46, 46),
+              minimumSize: const Size(48, 48),
             ),
             icon: const Icon(Icons.local_shipping, size: 31),
           ),
@@ -71,7 +71,7 @@ class _PageHeader extends StatelessWidget {
                   backgroundColor: AppColors.lightGray,
                   foregroundColor: Colors.black,
                   hoverColor: AppColors.green.withValues(alpha: 0.12),
-                  minimumSize: const Size(46, 46),
+                  minimumSize: const Size(48, 48),
                 ),
                 icon: const Icon(Icons.menu_rounded),
               );

@@ -89,6 +89,7 @@ class _AdminLoginPageState extends ConsumerState<AdminLoginPage> {
                             decoration: _decoration(
                               'Digite sua senha',
                               suffixIcon: IconButton(
+                                tooltip: _obscurePassword ? 'Mostrar senha' : 'Ocultar senha',
                                 onPressed: () {
                                   setState(() {
                                     _obscurePassword = !_obscurePassword;

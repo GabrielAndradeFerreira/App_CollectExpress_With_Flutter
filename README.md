@@ -77,6 +77,44 @@ Nova aba **Conversas** nos três perfis, com bolha de não lidas na aba e em cad
 Na conversa: voltar, nome do contato e menu (⋮) com *Ver dados do pedido* e *Denunciar conversa* (avisa os admins por e-mail).
 O app atualiza a conversa aberta a cada 5 s, a lista a cada 15 s e as bolhas a cada 30 s. Telefones não aparecem mais
 entre as partes. A API envia um e-mail a quem deixa mensagem sem ler por 8 horas. Rode `npm run migrate:chat` na API antes.
+
+## Reciclagem (parceiros e coleta de material)
+
+Quem tem material reciclável faz uma **sinalização**; um **parceiro de reciclagem** aprovado agenda a retirada e a API
+gera o termo de coleta em PDF, com três assinaturas e um código de autenticação. Rode `npm run migrate:reciclagem` na API antes.
+
+- **Tela pública** (`/reciclagem`, item RECICLAGEM do menu): explica o fluxo e leva a sinalizar, cadastrar-se como
+  parceiro ou entrar.
+- **Cliente e fornecedor:** *Sinalizar material* (tipos de material, descrição, quantidade estimada, endereço, janela de data
+  e hora e observações), com o aceite do termo. O cliente assina na tela; o fornecedor usa a assinatura cadastrada da
+  empresa. Em *Minhas sinalizações* acompanham a coleta agendada, baixam o termo, conversam com o parceiro e podem cancelar
+  até 24 horas depois do agendamento.
+- **Parceiro:** cadastro com CNPJ, responsável, endereço e materiais (conta fica pendente até um admin aprovar). Depois de
+  aprovado tem *Início* (resumo e o que falta cadastrar), *Sinalizações* (vitrine com filtro por material, distância e
+  período; o endereço completo só aparece depois do agendamento), *Coletas* (termo em PDF, chat, concluir com peso real,
+  cancelar), *Conversas* e *Perfil* (dados, materiais, área de atuação no mapa, assinatura e disponibilidade).
+- **Admin:** *Parceiros* lista os cadastros de parceiros de reciclagem com aprovar, recusar, suspender e reativar; as
+  conversas de coleta aparecem na aba *Coletas* (só leitura).
+- O parceiro só agenda com 24 horas ou mais de antecedência e dentro da janela, para quem entrega ter tempo de desistir.
+
+## Acessibilidade
+
+- **Tamanho do texto:** menu lateral > *Tamanho do texto* (Normal, Grande 125% ou Muito grande 150%). Soma-se ao tamanho
+  que o sistema já aplica, vale em todas as telas na hora e fica gravado no aparelho (`shared_preferences`).
+  As telas principais e as de reciclagem são testadas a 150% em celular de 360 px, sem overflow.
+- **Leitor de tela e toque:** botões só com ícone têm descrição (`tooltip`), as bolhas do chat são lidas inteiras (quem
+  escreveu, texto, hora e situação), as bolhas de não lidas são lidas por extenso, imagens têm descrição e os botões de
+  menu, quantidade e senha têm alvo de pelo menos 48 px.
+
+## Erros, logs e conexão
+
+- **Mensagens:** erro de validação diz o que conferir ("Dados inválidos. Confira: data de início, endereço."), e respostas sem texto (502/503/429) ganham uma mensagem clara.
+- **Conexão instável:** consultas (GET) que falham por timeout, queda de rede ou 502/503/504 são repetidas até 2 vezes (2 s e 5 s). O timeout subiu de 15 para 30 s e o app "acorda" a API ao abrir, porque o plano gratuito do Render hiberna. POST nunca é repetido.
+- **Sessão:** ao sair pelo menu ou pelas configurações do admin, o app volta para a tela inicial. Se a sessão expirar sozinha, o app também volta para o início e avisa.
+- **Rede de segurança:** erro que nenhuma tela tratou vira um aviso na tela e um registro; sem isso a tela ficava parada sem explicação.
+- **Logs:** o app envia para `POST /api/logs/app` os erros mostrados ao usuário (com a tela), telas que não carregaram, falhas de rede, exceções, overflows de layout e sessão expirada. Máximo de 40 por execução, sem repetição em 30 s. Veja "Logs de erros" no README da API.
+- **Perfil da loja do fornecedor:** agora lê e grava dados reais (nome, telefone, horário e taxa de entrega); antes mostrava dados de exemplo e o botão só fingia salvar.
+
 ## Estrutura
 
 ```
@@ -86,6 +124,7 @@ lib/
     network/       ApiClient (Dio), configuração, erros e interceptor de autenticação
     navigation/    rotas nomeadas
     services/      serviços externos (ViaCEP)
+    accessibility/ tamanho do texto escolhido pela pessoa
     theme/ widgets/ responsive/ utils/
   features/
     auth/          login, cadastro e sessão
@@ -94,7 +133,8 @@ lib/
     pedidos/       carrinho, agendamento, confirmação e acompanhamento
     perfil/        perfil e endereços do cliente
     admin/         painéis do fornecedor e do administrador
-    parceiros_reciclagem/  telas demonstrativas de reciclagem
+    reciclagem/    sinalização, agendamento, coletas e perfil do parceiro de reciclagem
+    parceiros_reciclagem/  informações sobre os materiais recicláveis
     institucional/ página "Saiba mais"
 test/              testes de modelos, ApiClient, repositórios e telas
 tool/              scripts que geram as evidências de teste
@@ -121,9 +161,9 @@ A saída completa da última execução está em [test-results/flutter-test.txt]
 
 | Situação | Telas |
 | :- | :- |
-| Integradas à API | login (cliente, fornecedor e admin), cadastro de cliente, cadastro de admin, catálogo e detalhe, carrinho, agendamento e checkout, acompanhamento e avaliação, perfil do cliente, painel, caçambas e pedidos do fornecedor, painel geral do admin |
-| Pendentes | envio dos cadastros de fornecedor e de parceiro de reciclagem, cadastro de caçamba, busca por CEP na página inicial, gestão de usuários e de parceiros, relatório financeiro, configurações, perfil da loja |
-| Demonstrativas | telas de reciclagem (materiais, parceiros e coletas) |
+| Integradas à API | login (cliente, fornecedor, parceiro e admin), cadastros de cliente, fornecedor, parceiro de reciclagem e admin, catálogo e detalhe, carrinho, agendamento e checkout, acompanhamento e avaliação, perfil do cliente, painel, caçambas e pedidos do fornecedor, painel geral do admin, conversas, sinalização e coletas de reciclagem, painel e perfil do parceiro, gestão de parceiros |
+| Pendentes | cadastro de caçamba, busca por CEP na página inicial, relatório financeiro, configurações, perfil da loja |
+| Demonstrativas | informações sobre os materiais (`/modelos`) |
 
 ## Autores
 

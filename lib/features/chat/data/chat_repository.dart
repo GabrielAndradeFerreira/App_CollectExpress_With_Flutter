@@ -86,6 +86,12 @@ class ChatRepository {
     return Conversa.fromJson(parseMap(data) ?? const {});
   }
 
+  /// Abre (ou cria) a conversa da coleta de reciclagem.
+  Future<Conversa> conversaDaColeta(String coletaId) async {
+    final data = await _api.post('/chat/coletas/$coletaId/conversa');
+    return Conversa.fromJson(parseMap(data) ?? const {});
+  }
+
   /// Lança `CHAMADO_ALREADY_OPEN` se o cliente já tem um aberto.
   Future<Conversa> abrirChamado({
     required String assunto,

@@ -1,18 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/models/enums.dart';
+import '../../../../core/navigation/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../../../../core/widgets/app_menu_drawer.dart';
-import 'parceiros_reciclagem_page.dart';
+import '../../../auth/data/sessao_provider.dart';
 
 //botoes de navegação do rodapé
 import '../../../../core/widgets/app_bottom_navigation.dart';
 
-class DetalhesMaterialPage extends StatelessWidget {
+/// Informações sobre os materiais recicláveis e a porta de entrada para
+/// sinalizar material (cliente e fornecedor) ou ver sinalizações (parceiro).
+class DetalhesMaterialPage extends ConsumerWidget {
   const DetalhesMaterialPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final perfil = ref.watch(sessaoProvider).value?.tipoPerfil;
+    final (textoDoBotao, rotaDoBotao) = switch (perfil) {
+      TipoPerfil.parceiro => ('Ver sinalizações', AppRoutes.recyclingOffers),
+      TipoPerfil.consumidor || TipoPerfil.cacambeiro => (
+        'Sinalizar meu material',
+        AppRoutes.recyclingMine,
+      ),
+      _ => ('Como funciona a coleta', AppRoutes.recyclingLanding),
+    };
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       endDrawer: const AppMenuDrawer(),
@@ -36,7 +51,9 @@ class DetalhesMaterialPage extends StatelessWidget {
                       width: double.infinity,
                       height: 55,
                       child: ElevatedButton(
-                        onPressed: () => _openPartners(context),
+                        key: const Key('material_cta'),
+                        onPressed: () =>
+                            Navigator.of(context).pushNamed(rotaDoBotao),
                         style: ElevatedButton.styleFrom(
                           elevation: 8,
                           shadowColor: Colors.black26,
@@ -46,9 +63,9 @@ class DetalhesMaterialPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(11),
                           ),
                         ),
-                        child: const Text(
-                          'Ver Parceiros Disponíveis',
-                          style: TextStyle(
+                        child: Text(
+                          textoDoBotao,
+                          style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                           ),
@@ -62,13 +79,9 @@ class DetalhesMaterialPage extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const RecyclingBottomNavigation(currentIndex: 0),
-    );
-  }
-
-  void _openPartners(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const ParceirosReciclagemPage()),
+      bottomNavigationBar: const RecyclingBottomNavigation(
+        aba: AbaReciclagem.inicio,
+      ),
     );
   }
 }
@@ -95,7 +108,7 @@ class _PageHeader extends StatelessWidget {
                 CircleAvatar(radius: 4, backgroundColor: AppColors.green),
                 SizedBox(width: 6),
                 Text(
-                  'Painel Admin',
+                  'Reciclagem',
                   style: TextStyle(
                     color: AppColors.green,
                     fontSize: 11,
@@ -109,12 +122,13 @@ class _PageHeader extends StatelessWidget {
           Builder(
             builder: (scaffoldContext) {
               return IconButton(
+                tooltip: 'Abrir menu',
                 onPressed: () {
                   Scaffold.of(scaffoldContext).openEndDrawer();
                 },
                 style: IconButton.styleFrom(
                   backgroundColor: AppColors.lightGray,
-                  minimumSize: const Size(46, 46),
+                  minimumSize: const Size(48, 48),
                 ),
                 icon: const Icon(Icons.menu_rounded),
               );
@@ -149,8 +163,8 @@ class _HeroSection extends StatelessWidget {
           ),
           SizedBox(height: 12),
           Text(
-            'Entenda o que é aceito, o impacto ambiental e como seguir '
-            'para encontrar parceiros.',
+            'Entenda o que é aceito, o impacto ambiental e como sinalizar o '
+            'seu material para um parceiro retirar.',
             style: TextStyle(color: Colors.white, fontSize: 17, height: 1.45),
           ),
         ],

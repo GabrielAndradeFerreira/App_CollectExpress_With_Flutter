@@ -8,6 +8,7 @@ import 'api_exception.dart';
 import 'api_response.dart';
 import 'interceptors/auth_interceptor.dart';
 import 'interceptors/error_interceptor.dart';
+import 'interceptors/retry_interceptor.dart';
 import 'token_storage.dart';
 
 /// Cliente HTTP único do app para a CollectExpressAPI.
@@ -19,6 +20,10 @@ class ApiClient {
     required TokenStorage storage,
     String? baseUrl,
     HttpClientAdapter? adapter,
+
+    /// Esperas antes de repetir um GET que falhou por motivo passageiro
+    /// (servidor acordando, rede instável). Vazio = não repete.
+    List<Duration> retryDelays = const [],
   }) {
     final options = BaseOptions(
       baseUrl: baseUrl ?? ApiConfig.baseUrl,
@@ -37,6 +42,8 @@ class ApiClient {
     }
 
     _dio.interceptors.addAll([
+      if (retryDelays.isNotEmpty)
+        RetryInterceptor(dio: _dio, atrasos: retryDelays),
       AuthInterceptor(
         storage: storage,
         refreshClient: refreshClient,

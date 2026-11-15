@@ -2,17 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../reciclagem/presentation/reciclagem_providers.dart';
 import '../area_atendimento_providers.dart';
 import '../pages/area_atendimento_page.dart';
 
 /// Card do perfil da loja com a cerca virtual atual e o atalho para
-/// desenhá-la no mapa.
+/// desenhá-la no mapa. Com [parceiro], mostra a área de atuação do parceiro
+/// de reciclagem.
 class AreaAtendimentoCard extends ConsumerWidget {
-  const AreaAtendimentoCard({super.key});
+  const AreaAtendimentoCard({super.key, this.parceiro = false});
+
+  final bool parceiro;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final area = ref.watch(areaAtendimentoProvider);
+    final provider = parceiro ? areaParceiroProvider : areaAtendimentoProvider;
+    final area = ref.watch(provider);
     final atual = area.value;
     final definida = atual?.definida ?? false;
 
@@ -27,15 +32,18 @@ class AreaAtendimentoCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Área de atendimento',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          Text(
+            parceiro ? 'Área de atuação' : 'Área de atendimento',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Marque no mapa até onde você entrega. Só clientes dentro dessa '
-            'área conseguem alugar suas caçambas; os demais podem apenas '
-            'falar com você.',
+          Text(
+            parceiro
+                ? 'Marque no mapa até onde você faz coletas. Você só vê as '
+                      'sinalizações de material dentro dessa área.'
+                : 'Marque no mapa até onde você entrega. Só clientes dentro '
+                      'dessa área conseguem alugar suas caçambas; os demais '
+                      'podem apenas falar com você.',
             style: TextStyle(color: Colors.black54, fontSize: 12, height: 1.4),
           ),
           const SizedBox(height: 12),
@@ -55,6 +63,9 @@ class AreaAtendimentoCard extends ConsumerWidget {
               definida
                   ? 'Atendendo num raio de ${atual!.raioKm?.round() ?? '-'} km '
                         'ao redor do ponto marcado.'
+                  : parceiro
+                  ? 'Área ainda não definida: defina para ver as sinalizações '
+                        'perto de você.'
                   : 'Área ainda não definida: suas caçambas aparecem para '
                         'clientes de qualquer região.',
               key: const Key('area_atendimento_resumo'),
@@ -70,10 +81,10 @@ class AreaAtendimentoCard extends ConsumerWidget {
             onPressed: () async {
               await Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => const AreaAtendimentoPage(),
+                  builder: (_) => AreaAtendimentoPage(parceiro: parceiro),
                 ),
               );
-              ref.invalidate(areaAtendimentoProvider);
+              ref.invalidate(provider);
             },
             icon: const Icon(Icons.map_outlined, size: 19),
             label: Text(definida ? 'Alterar área' : 'Definir área no mapa'),

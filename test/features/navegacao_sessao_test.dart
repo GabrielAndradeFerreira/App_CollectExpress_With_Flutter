@@ -215,7 +215,9 @@ void main() {
       expect(find.text('Admin'), findsOneWidget);
     });
 
-    testWidgets('sair encerra a sessão e abre o login', (tester) async {
+    testWidgets('sair encerra a sessão e volta para a tela inicial', (
+      tester,
+    ) async {
       final (adapter, tokens) = await _abrir(
         tester,
         const _Host(),
@@ -230,7 +232,9 @@ void main() {
 
       expect(adapter.paths, contains('POST /auth/logout'));
       expect(tokens.accessToken, isNull);
-      expect(find.text('tela de login'), findsOneWidget);
+      // A rota "/" é a tela inicial (aqui, o próprio _Host); o login não abre.
+      expect(find.byType(_Host), findsOneWidget);
+      expect(find.text('tela de login'), findsNothing);
       expect(find.text('Você saiu da sua conta.'), findsOneWidget);
     });
   });

@@ -31,8 +31,18 @@ abstract final class AppRoutes {
   static const adminSettings = '/admin/configuracoes';
 
   // Reciclagem
+  /// Propaganda para quem ainda não é parceiro (tela pública).
+  static const recyclingLanding = '/reciclagem';
   static const recyclingMaterials = '/reciclagem/materiais';
-  static const recyclingPartners = '/reciclagem/parceiros';
+
+  /// Início do parceiro logado.
+  static const recyclingHome = '/reciclagem/inicio';
+
+  /// Vitrine de sinalizações (parceiro).
+  static const recyclingOffers = '/reciclagem/sinalizacoes';
+
+  /// Minhas sinalizações (cliente e caçambeiro).
+  static const recyclingMine = '/reciclagem/minhas';
   static const recyclingCollections = '/reciclagem/coletas';
   static const recyclingProfile = '/reciclagem/perfil';
 }

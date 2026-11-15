@@ -8,6 +8,7 @@ import '../../../core/models/cacamba.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/extensao.dart';
 import '../../../core/models/json_parsing.dart';
+import '../../../core/models/usuario.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/api_providers.dart';
@@ -76,6 +77,26 @@ class FornecedorRepository {
   }
 
   /// Todas as caçambas do fornecedor, inclusive as indisponíveis.
+  /// Atualiza o que os clientes veem da loja: horário de funcionamento
+  /// (`HH:MM`) e taxa de entrega. Envia só o que for informado. Nome e
+  /// telefone são do perfil do usuário (`AuthRepository.atualizarPerfil`).
+  Future<DetalhesCacambeiro> atualizarLoja({
+    String? horarioInicio,
+    String? horarioFim,
+    double? taxaEntrega,
+  }) async {
+    final data = await _api.put(
+      '/cacambeiros/me',
+      data: {
+        'horario_inicio': ?horarioInicio,
+        'horario_fim': ?horarioFim,
+        'taxa_entrega': ?taxaEntrega,
+      },
+    );
+
+    return DetalhesCacambeiro.fromJson(parseMap(data) ?? const {});
+  }
+
   Future<List<Cacamba>> minhasCacambas() async {
     return parseList(await _api.get('/cacambas/minhas'), Cacamba.fromJson);
   }

@@ -204,10 +204,11 @@ class _PageHeader extends StatelessWidget {
           Builder(
             builder: (context) {
               return IconButton(
+                tooltip: 'Abrir menu',
                 onPressed: () => Scaffold.of(context).openEndDrawer(),
                 style: IconButton.styleFrom(
                   backgroundColor: AppColors.lightGray,
-                  minimumSize: const Size(46, 46),
+                  minimumSize: const Size(48, 48),
                 ),
                 icon: const Icon(Icons.menu_rounded),
               );
@@ -311,7 +312,6 @@ class _ItemCard extends StatelessWidget {
               IconButton(
                 tooltip: 'Remover do carrinho',
                 onPressed: ocupado ? null : onRemover,
-                visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 color: Colors.red,
@@ -386,10 +386,10 @@ class _Stepper extends StatelessWidget {
           child: Row(
             children: [
               IconButton(
+                tooltip: 'Diminuir quantidade',
                 onPressed: habilitado && valor > 1
                     ? () => onChanged(valor - 1)
                     : null,
-                visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.remove),
                 color: AppColors.green,
               ),
@@ -401,10 +401,10 @@ class _Stepper extends StatelessWidget {
                 ),
               ),
               IconButton(
+                tooltip: 'Aumentar quantidade',
                 onPressed: habilitado && valor < maximo
                     ? () => onChanged(valor + 1)
                     : null,
-                visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.add),
                 color: AppColors.green,
               ),

@@ -138,20 +138,24 @@ class BolhaNaoLidas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppColors.green,
-        borderRadius: BorderRadius.circular(11),
-      ),
-      child: Text(
-        total > 99 ? '99+' : '$total',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
+    return Semantics(
+      label: total == 1 ? '1 mensagem não lida' : '$total mensagens não lidas',
+      excludeSemantics: true,
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.green,
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Text(
+          total > 99 ? '99+' : '$total',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
     );
@@ -188,7 +192,7 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final suporte = tipo != TipoConversa.pedido;
+    final suporte = tipo != TipoConversa.pedido && tipo != TipoConversa.coleta;
 
     return CircleAvatar(
       radius: 25,

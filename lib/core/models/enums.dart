@@ -8,6 +8,7 @@ abstract interface class ApiEnum {
 enum TipoPerfil implements ApiEnum {
   consumidor('CONSUMIDOR'),
   cacambeiro('CACAMBEIRO'),
+  parceiro('PARCEIRO'),
   admin('ADMIN');
 
   const TipoPerfil(this.apiValue);

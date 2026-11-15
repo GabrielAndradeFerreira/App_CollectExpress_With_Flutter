@@ -18,6 +18,9 @@ class Usuario {
   /// Só para CACAMBEIRO, em `GET /usuarios/perfil`.
   final DetalhesCacambeiro? detalhesCacambeiro;
 
+  /// Só para PARCEIRO, no detalhe de usuário do admin.
+  final DetalhesParceiro? detalhesParceiro;
+
   const Usuario({
     required this.id,
     required this.nomeCompleto,
@@ -28,6 +31,7 @@ class Usuario {
     this.telefone,
     this.criadoEm,
     this.detalhesCacambeiro,
+    this.detalhesParceiro,
   });
 
   bool get isAdmin => tipoPerfil == TipoPerfil.admin;
@@ -36,8 +40,12 @@ class Usuario {
 
   bool get isConsumidor => tipoPerfil == TipoPerfil.consumidor;
 
+  /// Parceiro de reciclagem.
+  bool get isParceiro => tipoPerfil == TipoPerfil.parceiro;
+
   factory Usuario.fromJson(Map<String, dynamic> json) {
     final detalhes = parseMap(json['detalhes_cacambeiro']);
+    final parceiro = parseMap(json['detalhes_parceiro']);
 
     return Usuario(
       id: parseString(json['id']),
@@ -51,6 +59,39 @@ class Usuario {
       detalhesCacambeiro: detalhes == null
           ? null
           : DetalhesCacambeiro.fromJson(detalhes),
+      detalhesParceiro: parceiro == null
+          ? null
+          : DetalhesParceiro.fromJson(parceiro),
+    );
+  }
+}
+
+/// Tabela detalhes_parceiro: dados da empresa de reciclagem.
+class DetalhesParceiro {
+  final String responsavelNome;
+  final String enderecoColeta;
+  final double? capacidadeDiariaKg;
+  final double? raioAtuacaoKm;
+  final List<String> materiais;
+
+  const DetalhesParceiro({
+    required this.responsavelNome,
+    required this.enderecoColeta,
+    this.capacidadeDiariaKg,
+    this.raioAtuacaoKm,
+    this.materiais = const [],
+  });
+
+  factory DetalhesParceiro.fromJson(Map<String, dynamic> json) {
+    return DetalhesParceiro(
+      responsavelNome: parseString(json['responsavel_nome']),
+      enderecoColeta: parseString(json['endereco_coleta']),
+      capacidadeDiariaKg: parseDoubleOrNull(json['capacidade_diaria_kg']),
+      raioAtuacaoKm: parseDoubleOrNull(json['raio_atuacao_km']),
+      materiais: [
+        if (json['materiais'] is List)
+          for (final item in json['materiais'] as List) item.toString(),
+      ],
     );
   }
 }

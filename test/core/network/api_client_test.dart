@@ -93,10 +93,53 @@ void main() {
         }),
       );
 
-      expect(error.message, 'Campos inválidos.');
+      // Com um campo só, a mensagem é a do próprio campo.
+      expect(error.message, 'CEP deve conter 8 dígitos.');
       expect(error.statusCode, 400);
       expect(error.code, 'VALIDATION_ERROR');
       expect(error.fields, {'cep': 'CEP deve conter 8 dígitos.'});
+    });
+
+    test('Dados inválidos com vários campos diz o que conferir', () async {
+      final error = await errorFrom(
+        const FakeResponse(400, {
+          'success': false,
+          'message': 'Dados inválidos.',
+          'code': 'VALIDATION_ERROR',
+          'fields': {
+            'data_inicio': 'Informe a data.',
+            'endereco_id': 'Informe o endereço.',
+          },
+        }),
+      );
+
+      expect(
+        error.message,
+        'Dados inválidos. Confira: data de início, endereço.',
+      );
+    });
+
+    test('Dados inválidos com um campo cita o nome amigável', () async {
+      final error = await errorFrom(
+        const FakeResponse(400, {
+          'success': false,
+          'message': 'Dados inválidos.',
+          'code': 'VALIDATION_ERROR',
+          'fields': {
+            'assinatura_base64': "O campo 'assinatura_base64' é obrigatório.",
+          },
+        }),
+      );
+
+      expect(error.message, "O campo 'assinatura' é obrigatório.");
+    });
+
+    test('resposta sem texto usa uma mensagem pelo status', () async {
+      final indisponivel = await errorFrom(const FakeResponse(503, 'ruim'));
+      final limite = await errorFrom(const FakeResponse(429, null));
+
+      expect(indisponivel.message, contains('indisponível'));
+      expect(limite.message, contains('Muitas solicitações'));
     });
 
     test('lê {error} do formato antigo', () async {

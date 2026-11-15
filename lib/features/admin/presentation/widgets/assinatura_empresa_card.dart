@@ -8,6 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/async_value_view.dart';
+import '../../../reciclagem/data/parceiro_repository.dart';
+import '../../../reciclagem/presentation/reciclagem_providers.dart';
 import '../../data/fornecedor_repository.dart';
 import 'foto_cacamba_picker.dart';
 
@@ -85,12 +87,16 @@ Future<Uint8List?> escolherArquivoDeAssinatura() async {
 }
 
 /// Card do perfil da loja para enviar, trocar e remover a assinatura que
-/// vai nos contratos de locação.
+/// vai nos contratos de locação. Com [parceiro], é a assinatura do parceiro
+/// de reciclagem, usada no termo de cada coleta agendada.
 class AssinaturaEmpresaCard extends ConsumerStatefulWidget {
   const AssinaturaEmpresaCard({
     super.key,
+    this.parceiro = false,
     this.escolherArquivo = escolherArquivoDeAssinatura,
   });
+
+  final bool parceiro;
 
   /// Troca em testes para não abrir a galeria de verdade.
   final Future<Uint8List?> Function() escolherArquivo;
@@ -102,6 +108,23 @@ class AssinaturaEmpresaCard extends ConsumerStatefulWidget {
 
 class _AssinaturaEmpresaCardState extends ConsumerState<AssinaturaEmpresaCard> {
   bool _salvando = false;
+
+  FutureProvider<Uint8List?> get _provider =>
+      widget.parceiro ? assinaturaParceiroProvider : assinaturaEmpresaProvider;
+
+  Future<void> _gravar(String base64) {
+    return widget.parceiro
+        ? ref.read(parceiroRepositoryProvider).salvarAssinatura(base64)
+        : ref
+              .read(fornecedorRepositoryProvider)
+              .salvarAssinaturaEmpresa(base64);
+  }
+
+  Future<void> _apagar() {
+    return widget.parceiro
+        ? ref.read(parceiroRepositoryProvider).removerAssinatura()
+        : ref.read(fornecedorRepositoryProvider).removerAssinaturaEmpresa();
+  }
 
   void _aviso(String texto, {bool sucesso = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -134,14 +157,11 @@ class _AssinaturaEmpresaCardState extends ConsumerState<AssinaturaEmpresaCard> {
     setState(() => _salvando = true);
 
     try {
-      await ref
-          .read(fornecedorRepositoryProvider)
-          .salvarAssinaturaEmpresa(
-            'data:image/png;base64,${base64Encode(bytes)}',
-          );
+      await _gravar('data:image/png;base64,${base64Encode(bytes)}');
       if (!mounted) return;
 
-      ref.invalidate(assinaturaEmpresaProvider);
+      ref.invalidate(_provider);
+      if (widget.parceiro) ref.invalidate(pendenciasParceiroProvider);
       _aviso('Assinatura atualizada.', sucesso: true);
     } on ApiException catch (erro) {
       if (mounted) showApiError(context, erro);
@@ -154,10 +174,11 @@ class _AssinaturaEmpresaCardState extends ConsumerState<AssinaturaEmpresaCard> {
     setState(() => _salvando = true);
 
     try {
-      await ref.read(fornecedorRepositoryProvider).removerAssinaturaEmpresa();
+      await _apagar();
       if (!mounted) return;
 
-      ref.invalidate(assinaturaEmpresaProvider);
+      ref.invalidate(_provider);
+      if (widget.parceiro) ref.invalidate(pendenciasParceiroProvider);
       _aviso('Assinatura removida.', sucesso: true);
     } on ApiException catch (erro) {
       if (mounted) showApiError(context, erro);
@@ -168,7 +189,7 @@ class _AssinaturaEmpresaCardState extends ConsumerState<AssinaturaEmpresaCard> {
 
   @override
   Widget build(BuildContext context) {
-    final assinatura = ref.watch(assinaturaEmpresaProvider);
+    final assinatura = ref.watch(_provider);
     final atual = assinatura.value;
 
     return Container(
@@ -187,11 +208,12 @@ class _AssinaturaEmpresaCardState extends ConsumerState<AssinaturaEmpresaCard> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Aparece no contrato de locação de cada pedido novo. Envie um '
+          Text(
+            '${widget.parceiro ? 'Aparece no termo de cada coleta que você agendar. Sem ela, você não consegue agendar.' : 'Aparece no contrato de locação de cada pedido novo.'} '
+            'Envie um '
             'PNG com fundo transparente, na proporção 3:1 (ex.: 900×300 px), '
             'de 300×100 a 1200×400 px e até 300 KB. Você pode trocar quando '
-            'quiser; contratos já emitidos não mudam.',
+            'quiser; documentos já emitidos não mudam.',
             style: TextStyle(color: Colors.black54, fontSize: 12, height: 1.4),
           ),
           const SizedBox(height: 14),
@@ -214,18 +236,24 @@ class _AssinaturaEmpresaCardState extends ConsumerState<AssinaturaEmpresaCard> {
                     padding: const EdgeInsets.all(8),
                     child: Image.memory(
                       atual,
+                      semanticLabel: 'Prévia da assinatura da empresa',
                       key: const Key('assinatura_empresa_previa'),
                       fit: BoxFit.contain,
                     ),
                   )
-                : const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
-                      'Nenhuma assinatura enviada. O contrato mostrará '
-                      '"Assinado eletronicamente via plataforma".',
-                      key: Key('assinatura_empresa_vazia'),
+                      widget.parceiro
+                          ? 'Nenhuma assinatura enviada.'
+                          : 'Nenhuma assinatura enviada. O contrato mostrará '
+                                '"Assinado eletronicamente via plataforma".',
+                      key: const Key('assinatura_empresa_vazia'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.black54, fontSize: 12),
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
           ),

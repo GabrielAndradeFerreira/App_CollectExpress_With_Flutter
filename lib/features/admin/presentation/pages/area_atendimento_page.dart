@@ -12,6 +12,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/abrir_link.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../cacambas/data/localizacao_repository.dart';
+import '../../../reciclagem/data/parceiro_repository.dart';
+import '../../../reciclagem/presentation/reciclagem_providers.dart';
 import '../area_atendimento_providers.dart';
 import '../../data/fornecedor_repository.dart';
 
@@ -29,8 +31,13 @@ const _centroDoBrasil = LatLng(-14.235, -51.925);
 
 /// Tela em que o fornecedor desenha a cerca virtual: toca no mapa (ou
 /// busca pelo CEP) para marcar o centro e ajusta o raio.
+///
+/// Com [parceiro], é a área de atuação do parceiro de reciclagem: ele só
+/// vê sinalizações dentro do círculo.
 class AreaAtendimentoPage extends ConsumerStatefulWidget {
-  const AreaAtendimentoPage({super.key});
+  const AreaAtendimentoPage({super.key, this.parceiro = false});
+
+  final bool parceiro;
 
   @override
   ConsumerState<AreaAtendimentoPage> createState() =>
@@ -50,6 +57,9 @@ class _AreaAtendimentoPageState extends ConsumerState<AreaAtendimentoPage> {
   bool _buscandoCep = false;
   bool _salvando = false;
   String? _erroCep;
+
+  FutureProvider<AreaAtendimento> get _provider =>
+      widget.parceiro ? areaParceiroProvider : areaAtendimentoProvider;
 
   @override
   void dispose() {
@@ -149,21 +159,36 @@ class _AreaAtendimentoPageState extends ConsumerState<AreaAtendimentoPage> {
     setState(() => _salvando = true);
 
     try {
-      await ref
-          .read(fornecedorRepositoryProvider)
-          .salvarAreaAtendimento(
-            latitude: centro.latitude,
-            longitude: centro.longitude,
-            raioKm: raio,
-          );
+      if (widget.parceiro) {
+        await ref
+            .read(parceiroRepositoryProvider)
+            .salvarArea(
+              latitude: centro.latitude,
+              longitude: centro.longitude,
+              raioKm: raio,
+            );
+      } else {
+        await ref
+            .read(fornecedorRepositoryProvider)
+            .salvarAreaAtendimento(
+              latitude: centro.latitude,
+              longitude: centro.longitude,
+              raioKm: raio,
+            );
+      }
 
       if (!mounted) return;
 
-      ref.invalidate(areaAtendimentoProvider);
+      ref.invalidate(_provider);
+      if (widget.parceiro) ref.invalidate(pendenciasParceiroProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Área de atendimento salva.'),
+        SnackBar(
+          content: Text(
+            widget.parceiro
+                ? 'Área de atuação salva.'
+                : 'Área de atendimento salva.',
+          ),
           backgroundColor: AppColors.green,
         ),
       );
@@ -177,12 +202,12 @@ class _AreaAtendimentoPageState extends ConsumerState<AreaAtendimentoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final area = ref.watch(areaAtendimentoProvider);
+    final area = ref.watch(_provider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Área de atendimento',
+        title: Text(
+          widget.parceiro ? 'Área de atuação' : 'Área de atendimento',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         backgroundColor: Colors.white,
@@ -191,10 +216,8 @@ class _AreaAtendimentoPageState extends ConsumerState<AreaAtendimentoPage> {
       body: SafeArea(
         child: area.when(
           loading: () => const LoadingView(),
-          error: (error, _) => ErrorView(
-            error: error,
-            onRetry: () => ref.invalidate(areaAtendimentoProvider),
-          ),
+          error: (error, _) =>
+              ErrorView(error: error, onRetry: () => ref.invalidate(_provider)),
           data: _conteudo,
         ),
       ),
@@ -282,6 +305,9 @@ class _AreaAtendimentoPageState extends ConsumerState<AreaAtendimentoPage> {
                   centro == null
                       ? 'Toque no mapa para marcar o centro da sua área, ou '
                             'busque pelo CEP da sua base.'
+                      : widget.parceiro
+                      ? 'Toque no mapa para mudar o centro. Você vê as '
+                            'sinalizações de material dentro do círculo.'
                       : 'Toque no mapa para mudar o centro. Clientes dentro '
                             'do círculo veem suas caçambas e podem alugar.',
                   style: const TextStyle(color: Colors.black54, fontSize: 13),
@@ -341,7 +367,9 @@ class _AreaAtendimentoPageState extends ConsumerState<AreaAtendimentoPage> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'Raio de atendimento: ${raio.round()} km',
+                  widget.parceiro
+                      ? 'Raio de atuação: ${raio.round()} km'
+                      : 'Raio de atendimento: ${raio.round()} km',
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
                 Slider(

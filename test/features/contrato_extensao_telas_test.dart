@@ -286,6 +286,88 @@ void main() {
         isEmpty,
       );
     });
+
+    Future<void> enviarComRecusa(
+      WidgetTester tester,
+      FakeResponse recusa,
+    ) async {
+      await _abrir(
+        tester,
+        const AgendarEntregaPage(),
+        (request) =>
+            request.method == 'POST' && request.path == '/alugueis/checkout'
+            ? recusa
+            : handler(request),
+      );
+
+      await escolherData(tester);
+      await tester.tap(find.byKey(const Key('aceite_termos_checkbox')));
+      await tester.pumpAndSettle();
+      await _assinar(tester);
+
+      await tester.ensureVisible(find.byKey(const Key('confirmar_pedido')));
+      await tester.tap(find.byKey(const Key('confirmar_pedido')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('data recusada pela API: mostra o motivo e pede outra data', (
+      tester,
+    ) async {
+      await enviarComRecusa(
+        tester,
+        const FakeResponse(400, {
+          'success': false,
+          'message':
+              'A data de início deve estar entre 1 e 60 dias a partir de hoje.',
+          'code': 'INVALID_START_DATE',
+        }),
+      );
+
+      expect(find.textContaining('entre 1 e 60 dias'), findsOneWidget);
+      // A data é desmarcada para a pessoa escolher outra.
+      expect(find.textContaining('Escolha a data de início entre'), findsOneWidget);
+    });
+
+    testWidgets('Dados inválidos diz o que conferir e refaz a assinatura', (
+      tester,
+    ) async {
+      await enviarComRecusa(
+        tester,
+        const FakeResponse(400, {
+          'success': false,
+          'message': 'Dados inválidos.',
+          'code': 'VALIDATION_ERROR',
+          'fields': {
+            'data_inicio': "O campo 'data_inicio' possui formato inválido.",
+            'assinatura_base64': "O campo 'assinatura_base64' é obrigatório.",
+          },
+        }),
+      );
+
+      expect(
+        find.text('Dados inválidos. Confira: data de início, assinatura.'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('aceite_termos_previa')), findsNothing);
+      expect(botaoConfirmar(tester).onPressed, isNull);
+    });
+
+    testWidgets('falha fora do padrão também avisa a pessoa', (tester) async {
+      await enviarComRecusa(
+        tester,
+        const FakeResponse(503, '<html>Service Unavailable</html>'),
+      );
+
+      expect(
+        find.text(
+          'O servidor está indisponível no momento. Tente novamente em '
+          'instantes.',
+        ),
+        findsOneWidget,
+      );
+      // O pedido continua pronto para tentar de novo.
+      expect(find.byKey(const Key('aceite_termos_previa')), findsOneWidget);
+    });
   });
 
   group('acompanhar pedido: contrato e extensão', () {

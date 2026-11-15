@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/navigation/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../../../../core/widgets/app_menu_drawer.dart';
+import '../../../auth/data/sessao_provider.dart';
 
 import '../../../../core/widgets/app_bottom_navigation.dart';
 
-class ConfiguracoesAdminPage extends StatefulWidget {
+class ConfiguracoesAdminPage extends ConsumerStatefulWidget {
   const ConfiguracoesAdminPage({super.key});
 
   @override
-  State<ConfiguracoesAdminPage> createState() => _ConfiguracoesAdminPageState();
+  ConsumerState<ConfiguracoesAdminPage> createState() =>
+      _ConfiguracoesAdminPageState();
 }
 
-class _ConfiguracoesAdminPageState extends State<ConfiguracoesAdminPage> {
+class _ConfiguracoesAdminPageState
+    extends ConsumerState<ConfiguracoesAdminPage> {
   bool maintenanceMode = false;
   bool allowNewPartners = true;
 
@@ -782,9 +787,18 @@ class _ConfiguracoesAdminPageState extends State<ConfiguracoesAdminPage> {
       },
     );
 
-    if (confirmed == true && mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+    if (confirmed != true || !mounted) return;
+
+    // Antes só voltava uma tela e a sessão continuava aberta.
+    final navigator = Navigator.of(context);
+
+    try {
+      await ref.read(sessaoProvider.notifier).sair();
+    } catch (_) {
+      // sair() apaga a sessão local mesmo se a API não responder.
     }
+
+    navigator.pushNamedAndRemoveUntil(AppRoutes.home, (route) => false);
   }
 
   void _showMessage(String message, [Color color = AppColors.green]) {
@@ -829,12 +843,13 @@ class _AdminHeader extends StatelessWidget {
           Builder(
             builder: (scaffoldContext) {
               return IconButton(
+                tooltip: 'Abrir menu',
                 onPressed: () {
                   Scaffold.of(scaffoldContext).openEndDrawer();
                 },
                 style: IconButton.styleFrom(
                   backgroundColor: AppColors.lightGray,
-                  minimumSize: const Size(46, 46),
+                  minimumSize: const Size(48, 48),
                 ),
                 icon: const Icon(Icons.menu_rounded),
               );

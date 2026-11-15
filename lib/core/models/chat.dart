@@ -1,7 +1,8 @@
 import 'enums.dart';
 import 'json_parsing.dart';
+import 'reciclagem.dart';
 
-/// Os três tipos de conversa da API.
+/// Os tipos de conversa da API.
 enum TipoConversa implements ApiEnum {
   /// Cliente e caçambeiro, ligada a um pedido.
   pedido('PEDIDO'),
@@ -10,7 +11,10 @@ enum TipoConversa implements ApiEnum {
   suporteCacambeiro('SUPORTE_CACAMBEIRO'),
 
   /// Cliente e equipe: aberto pelo cliente e fechado por um admin.
-  chamado('CHAMADO');
+  chamado('CHAMADO'),
+
+  /// Quem entrega material reciclável e o parceiro, uma por coleta.
+  coleta('COLETA');
 
   const TipoConversa(this.apiValue);
 
@@ -57,6 +61,8 @@ class Conversa {
   final String? assunto;
   final String? aluguelId;
   final String? pedidoCodigo;
+  final String? coletaId;
+  final String? coletaCodigo;
   final String contatoNome;
   final String? contatoDetalhe;
   final UltimaMensagem? ultimaMensagem;
@@ -75,6 +81,9 @@ class Conversa {
   /// Só no detalhe, quando a conversa tem pedido vinculado.
   final PedidoDaConversa? pedido;
 
+  /// Só no detalhe, quando a conversa é de uma coleta de reciclagem.
+  final Coleta? coleta;
+
   const Conversa({
     required this.id,
     required this.tipo,
@@ -83,6 +92,8 @@ class Conversa {
     this.assunto,
     this.aluguelId,
     this.pedidoCodigo,
+    this.coletaId,
+    this.coletaCodigo,
     this.contatoDetalhe,
     this.ultimaMensagem,
     this.ultimaAtividadeEm,
@@ -93,11 +104,13 @@ class Conversa {
     this.somenteLeitura = false,
     this.fechadaEm,
     this.pedido,
+    this.coleta,
   });
 
   factory Conversa.fromJson(Map<String, dynamic> json) {
     final ultima = parseMap(json['ultima_mensagem']);
     final pedido = parseMap(json['pedido']);
+    final coleta = parseMap(json['coleta']);
 
     return Conversa(
       id: parseString(json['id']),
@@ -106,6 +119,8 @@ class Conversa {
       assunto: parseStringOrNull(json['assunto']),
       aluguelId: parseStringOrNull(json['aluguel_id']),
       pedidoCodigo: parseStringOrNull(json['pedido_codigo']),
+      coletaId: parseStringOrNull(json['coleta_id']),
+      coletaCodigo: parseStringOrNull(json['coleta_codigo']),
       contatoNome: parseString(json['contato_nome']),
       contatoDetalhe: parseStringOrNull(json['contato_detalhe']),
       ultimaMensagem: ultima == null ? null : UltimaMensagem.fromJson(ultima),
@@ -117,6 +132,7 @@ class Conversa {
       somenteLeitura: parseBool(json['somente_leitura']),
       fechadaEm: parseDate(json['fechada_em']),
       pedido: pedido == null ? null : PedidoDaConversa.fromJson(pedido),
+      coleta: coleta == null ? null : Coleta.fromJson(coleta),
     );
   }
 
@@ -124,6 +140,8 @@ class Conversa {
 
   /// Quem não é o admin só tem o chat do pedido com dados vinculados.
   bool get temPedido => aluguelId != null;
+
+  bool get temColeta => coletaId != null;
 }
 
 /// Resumo do pedido mostrado no menu (⋮) da conversa. Sem telefone.

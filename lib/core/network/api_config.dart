@@ -24,5 +24,13 @@ abstract final class ApiConfig {
     return _apiUrlPadrao;
   }
 
-  static const Duration timeout = Duration(seconds: 15);
+  /// O plano gratuito do Render hiberna e leva até ~50 s para acordar:
+  /// 15 s derrubava a primeira chamada do dia.
+  static const Duration timeout = Duration(seconds: 30);
+
+  /// Esperas antes de repetir um GET que falhou por motivo passageiro.
+  static const List<Duration> retryDelays = [
+    Duration(seconds: 2),
+    Duration(seconds: 5),
+  ];
 }

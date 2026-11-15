@@ -24,6 +24,7 @@ class CacambaImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final local = Image.asset(
       _asset,
+      semanticLabel: 'Foto da caçamba',
       width: double.infinity,
       fit: fit,
       errorBuilder: (_, _, _) => Container(
@@ -39,6 +40,7 @@ class CacambaImage extends StatelessWidget {
 
     return Image.network(
       url,
+      semanticLabel: 'Foto da caçamba',
       width: double.infinity,
       fit: fit,
       errorBuilder: (_, _, _) => local,

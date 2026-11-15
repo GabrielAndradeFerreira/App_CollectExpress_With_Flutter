@@ -22,6 +22,7 @@ enum _Filtro {
   pendentes('Pendentes', status: StatusUsuario.pendente),
   clientes('Clientes', tipoPerfil: TipoPerfil.consumidor),
   fornecedores('Fornecedores', tipoPerfil: TipoPerfil.cacambeiro),
+  parceiros('Parceiros', tipoPerfil: TipoPerfil.parceiro),
   admins('Admins', tipoPerfil: TipoPerfil.admin);
 
   const _Filtro(this.label, {this.tipoPerfil, this.status});
@@ -756,12 +757,13 @@ class _AdminHeader extends StatelessWidget {
           Builder(
             builder: (scaffoldContext) {
               return IconButton(
+                tooltip: 'Abrir menu',
                 onPressed: () {
                   Scaffold.of(scaffoldContext).openEndDrawer();
                 },
                 style: IconButton.styleFrom(
                   backgroundColor: AppColors.lightGray,
-                  minimumSize: const Size(46, 46),
+                  minimumSize: const Size(48, 48),
                 ),
                 icon: const Icon(Icons.menu_rounded),
               );

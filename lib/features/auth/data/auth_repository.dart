@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/enums.dart';
 import '../../../core/models/json_parsing.dart';
+import '../../../core/models/reciclagem.dart';
 import '../../../core/models/usuario.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
@@ -47,8 +48,8 @@ class AuthRepository {
     return Usuario.fromJson(parseMap(json['usuario']) ?? const {});
   }
 
-  /// Cria uma conta de CONSUMIDOR ou CACAMBEIRO. Não faz login: a conta de
-  /// fornecedor fica PENDENTE até ser aprovada.
+  /// Cria uma conta de CONSUMIDOR, CACAMBEIRO ou PARCEIRO. Não faz login: a
+  /// conta de fornecedor ou de parceiro fica PENDENTE até ser aprovada.
   ///
   /// Administradores são criados por outro admin (`AdminRepository`).
   Future<Usuario> registrar({
@@ -59,11 +60,16 @@ class AuthRepository {
     required String documento,
     required String telefone,
     DetalhesCacambeiro? detalhesCacambeiro,
+    DadosCadastroParceiro? dadosParceiro,
   }) async {
     assert(tipoPerfil != TipoPerfil.admin);
     assert(
       tipoPerfil != TipoPerfil.cacambeiro || detalhesCacambeiro != null,
       'Fornecedores precisam de detalhesCacambeiro',
+    );
+    assert(
+      tipoPerfil != TipoPerfil.parceiro || dadosParceiro != null,
+      'Parceiros precisam de dadosParceiro',
     );
 
     final data = await _api.post(
@@ -77,6 +83,7 @@ class AuthRepository {
         'documento': _digits(documento),
         'telefone': _digits(telefone),
         ...?detalhesCacambeiro?.toJson(),
+        ...?dadosParceiro?.toJson(),
       },
     );
 

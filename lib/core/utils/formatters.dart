@@ -21,6 +21,23 @@ String formatDate(DateTime? date) {
   return '$day/$month/${local.year}';
 }
 
+/// `25/10/2026 às 14:30` (horário local), ou `-` sem data.
+String formatDateTime(DateTime? date) {
+  if (date == null) return '-';
+  final local = date.isUtc ? date.toLocal() : date;
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '${formatDate(local)} às $hour:$minute';
+}
+
+/// `12 kg`, `12,5 kg`
+String formatKg(double kg) {
+  final text = kg == kg.roundToDouble()
+      ? kg.toStringAsFixed(0)
+      : kg.toStringAsFixed(1).replaceAll('.', ',');
+  return '$text kg';
+}
+
 /// `5m³`, `4,5m³`
 String formatVolume(double m3) {
   final text = m3 == m3.roundToDouble()

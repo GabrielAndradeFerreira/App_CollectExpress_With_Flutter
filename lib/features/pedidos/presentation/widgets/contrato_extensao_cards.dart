@@ -300,6 +300,7 @@ class _EscolhaDeDiasDialogState extends State<_EscolhaDeDiasDialog> {
             children: [
               IconButton.outlined(
                 key: const Key('extensao_menos'),
+                tooltip: 'Menos um dia',
                 onPressed: _dias > 1 ? () => setState(() => _dias--) : null,
                 icon: const Icon(Icons.remove),
               ),
@@ -317,6 +318,7 @@ class _EscolhaDeDiasDialogState extends State<_EscolhaDeDiasDialog> {
               ),
               IconButton.outlined(
                 key: const Key('extensao_mais'),
+                tooltip: 'Mais um dia',
                 onPressed: _dias < _maximo ? () => setState(() => _dias++) : null,
                 icon: const Icon(Icons.add),
               ),

@@ -91,6 +91,9 @@ class _AdminRegisterPageState extends ConsumerState<AdminRegisterPage> {
                             hint: 'Mínimo de 8 caracteres',
                             obscureText: _obscurePassword,
                             suffixIcon: IconButton(
+                              tooltip: _obscurePassword
+                                  ? 'Mostrar senha'
+                                  : 'Ocultar senha',
                               onPressed: () {
                                 setState(() {
                                   _obscurePassword = !_obscurePassword;
@@ -109,6 +112,9 @@ class _AdminRegisterPageState extends ConsumerState<AdminRegisterPage> {
                             hint: 'Repita sua senha',
                             obscureText: _obscureConfirmation,
                             suffixIcon: IconButton(
+                              tooltip: _obscureConfirmation
+                                  ? 'Mostrar senha'
+                                  : 'Ocultar senha',
                               onPressed: () {
                                 setState(() {
                                   _obscureConfirmation = !_obscureConfirmation;
