@@ -2,6 +2,7 @@ import 'package:app_collect_express_with_flutter/core/navigation/app_routes.dart
 import 'package:app_collect_express_with_flutter/core/network/api_client.dart';
 import 'package:app_collect_express_with_flutter/core/network/api_providers.dart';
 import 'package:app_collect_express_with_flutter/core/widgets/app_bottom_navigation.dart';
+import 'package:app_collect_express_with_flutter/core/widgets/app_logo.dart';
 import 'package:app_collect_express_with_flutter/core/widgets/app_menu_drawer.dart';
 import 'package:app_collect_express_with_flutter/features/pedidos/presentation/pages/meus_pedidos_page.dart';
 import 'package:dio/dio.dart' show RequestOptions;
@@ -79,6 +80,13 @@ Future<(FakeApiAdapter, InMemoryTokenStorage)> _abrir(
         home: tela,
         routes: {
           AppRoutes.login: (_) => const Scaffold(body: Text('tela de login')),
+          AppRoutes.adminHome: (_) =>
+              const Scaffold(body: Text('painel do admin')),
+          AppRoutes.supplierHome: (_) =>
+              const Scaffold(body: Text('painel do fornecedor')),
+          AppRoutes.cart: (_) => const Scaffold(body: Text('tela do carrinho')),
+          AppRoutes.customerProfile: (_) =>
+              const Scaffold(body: Text('perfil do cliente')),
         },
       ),
     ),
@@ -97,6 +105,19 @@ class _Host extends StatelessWidget {
       endDrawer: AppMenuDrawer(),
       body: SizedBox.shrink(),
       bottomNavigationBar: CustomerBottomNavigation(currentIndex: 0),
+    );
+  }
+}
+
+/// Tela mínima com a barra das telas de reciclagem.
+class _HostReciclagem extends StatelessWidget {
+  const _HostReciclagem();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: SizedBox.shrink(),
+      bottomNavigationBar: RecyclingBottomNavigation(aba: AbaReciclagem.inicio),
     );
   }
 }
@@ -183,9 +204,86 @@ void main() {
       expect(find.text('Olá, bem-vindo!'), findsOneWidget);
       expect(find.text('LOGIN'), findsOneWidget);
       expect(find.text('CADASTRE-SE'), findsOneWidget);
+      expect(find.text('SAIBA MAIS'), findsOneWidget);
+      expect(find.text('SERVIÇOS'), findsOneWidget);
+      expect(find.text('MODELOS'), findsOneWidget);
       expect(find.text('SAIR'), findsNothing);
+      expect(find.text('MEU CARRINHO'), findsNothing);
       expect(find.text('Pedidos'), findsOneWidget);
       expect(find.text('Perfil'), findsOneWidget);
+    });
+
+    testWidgets('cliente: mostra o catálogo e esconde o saiba mais', (
+      tester,
+    ) async {
+      await _abrir(tester, const _Host(), tipoPerfil: 'CONSUMIDOR');
+      await _abrirDrawer(tester);
+
+      expect(find.text('Cliente'), findsOneWidget);
+      expect(find.text('SERVIÇOS'), findsOneWidget);
+      expect(find.text('MODELOS'), findsOneWidget);
+      expect(find.text('MEU CARRINHO'), findsOneWidget);
+      expect(find.text('MEUS PEDIDOS'), findsOneWidget);
+      expect(find.text('SAIBA MAIS'), findsNothing);
+      expect(find.text('CADASTRE-SE'), findsNothing);
+    });
+
+    // Quem saía do carrinho no meio da compra não tinha como voltar.
+    testWidgets('cliente: MEU CARRINHO mostra quantas caçambas há e abre o '
+        'carrinho', (tester) async {
+      await _abrir(
+        tester,
+        const _Host(),
+        tipoPerfil: 'CONSUMIDOR',
+        handler: (request) {
+          if (request.path == '/carrinho') {
+            return const FakeResponse(200, {
+              'success': true,
+              'data': {
+                'id': 'k1',
+                'itens': [],
+                'resumo': {'quantidade_itens': 3},
+              },
+            });
+          }
+          return const FakeResponse(404, {'success': false});
+        },
+      );
+      await _abrirDrawer(tester);
+
+      expect(
+        find.descendant(
+          of: find.widgetWithText(AppDrawerItem, 'MEU CARRINHO'),
+          matching: find.text('3'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('MEU CARRINHO'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('tela do carrinho'), findsOneWidget);
+    });
+
+    testWidgets('cliente com carrinho vazio não vê contador', (tester) async {
+      await _abrir(
+        tester,
+        const _Host(),
+        tipoPerfil: 'CONSUMIDOR',
+        handler: (_) => const FakeResponse(200, {
+          'success': true,
+          'data': {'id': null, 'itens': []},
+        }),
+      );
+      await _abrirDrawer(tester);
+
+      expect(
+        find.descendant(
+          of: find.widgetWithText(AppDrawerItem, 'MEU CARRINHO'),
+          matching: find.text('0'),
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('fornecedor: mostra o painel e a gestão de pedidos', (
@@ -201,6 +299,10 @@ void main() {
       expect(find.text('PAINEL ADMIN'), findsNothing);
       expect(find.text('LOGIN'), findsNothing);
       expect(find.text('CADASTRE-SE'), findsNothing);
+      expect(find.text('SAIBA MAIS'), findsNothing);
+      expect(find.text('SERVIÇOS'), findsNothing);
+      expect(find.text('MODELOS'), findsNothing);
+      expect(find.text('MEU CARRINHO'), findsNothing);
       expect(find.text('Gestão'), findsOneWidget);
       expect(find.text('Painel'), findsOneWidget);
     });
@@ -212,7 +314,59 @@ void main() {
       expect(find.text('Administrador'), findsOneWidget);
       expect(find.text('PAINEL ADMIN'), findsOneWidget);
       expect(find.text('MEU PAINEL'), findsNothing);
+      expect(find.text('SAIBA MAIS'), findsNothing);
+      expect(find.text('SERVIÇOS'), findsNothing);
+      expect(find.text('MODELOS'), findsNothing);
       expect(find.text('Admin'), findsOneWidget);
+    });
+
+    testWidgets('admin: INÍCIO leva ao painel do admin', (tester) async {
+      await _abrir(tester, const _Host(), tipoPerfil: 'ADMIN');
+      await _abrirDrawer(tester);
+
+      await tester.tap(find.text('INÍCIO'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('painel do admin'), findsOneWidget);
+    });
+
+    testWidgets('fornecedor: INÍCIO leva ao painel do fornecedor', (
+      tester,
+    ) async {
+      await _abrir(tester, const _Host(), tipoPerfil: 'CACAMBEIRO');
+      await _abrirDrawer(tester);
+
+      await tester.tap(find.text('INÍCIO'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('painel do fornecedor'), findsOneWidget);
+    });
+
+    testWidgets('admin: o logo do menu leva ao painel do admin', (
+      tester,
+    ) async {
+      await _abrir(tester, const _Host(), tipoPerfil: 'ADMIN');
+      await _abrirDrawer(tester);
+
+      await tester.tap(find.byTooltip('Ir para o início'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('painel do admin'), findsOneWidget);
+    });
+
+    testWidgets('admin: o logo do cabeçalho leva ao painel do admin', (
+      tester,
+    ) async {
+      await _abrir(
+        tester,
+        const Scaffold(body: AppLogo()),
+        tipoPerfil: 'ADMIN',
+      );
+
+      await tester.tap(find.byTooltip('Ir para o início'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('painel do admin'), findsOneWidget);
     });
 
     testWidgets('sair encerra a sessão e volta para a tela inicial', (
@@ -238,4 +392,24 @@ void main() {
       expect(find.text('Você saiu da sua conta.'), findsOneWidget);
     });
   });
-}
+
+  // A aba "Perfil" só existe para o parceiro. Quem já entrou como cliente,
+  // fornecedor ou admin não vê uma aba que abriria o login por engano.
+  group('barra da reciclagem: sem aba que abra o login por engano', () {
+    for (final tipoPerfil in [null, 'CONSUMIDOR', 'CACAMBEIRO', 'ADMIN']) {
+      testWidgets(': não há aba "Perfil"', (
+        tester,
+      ) async {
+        await _abrir(tester, const _HostReciclagem(), tipoPerfil: tipoPerfil);
+
+        expect(find.text('Materiais'), findsOneWidget);
+        expect(find.text('Perfil'), findsNothing);
+      });
+    }
+
+    testWidgets('parceiro: a aba "Perfil" existe', (tester) async {
+      await _abrir(tester, const _HostReciclagem(), tipoPerfil: 'PARCEIRO');
+
+      expect(find.text('Perfil'), findsOneWidget);
+    });
+  });}

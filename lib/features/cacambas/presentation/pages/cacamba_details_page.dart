@@ -290,18 +290,22 @@ class _CacambaDetailsPageState extends ConsumerState<CacambaDetailsPage> {
     setState(() => _adicionando = true);
 
     try {
-      await ref
-          .read(carrinhoRepositoryProvider)
-          .adicionar(
-            cacambaId: cacamba.id,
-            quantidade: quantity,
-            diasAluguel: selectedDays,
-          );
+      await _adicionar(cacamba);
 
       if (!mounted) return;
       _abrirCarrinho();
     } on ApiException catch (error) {
       if (!mounted) return;
+
+      // O carrinho é de outro fornecedor: sem isso o cliente ficava só
+      // com o erro e sem caminho para concluir ou trocar o pedido.
+      if (error.code == 'CART_SUPPLIER_CONFLICT') {
+        // O botão não fica carregando atrás da pergunta.
+        setState(() => _adicionando = false);
+        await _resolverConflitoDeFornecedor(cacamba);
+        return;
+      }
+
       showApiError(context, error);
 
       // A caçamba já está no carrinho: leva o cliente até lá.
@@ -311,11 +315,97 @@ class _CacambaDetailsPageState extends ConsumerState<CacambaDetailsPage> {
     }
   }
 
+  Future<void> _adicionar(Cacamba cacamba) {
+    return ref
+        .read(carrinhoRepositoryProvider)
+        .adicionar(
+          cacambaId: cacamba.id,
+          quantidade: quantity,
+          diasAluguel: selectedDays,
+        );
+  }
+
+  /// Um pedido tem um fornecedor só. O cliente escolhe entre concluir o
+  /// carrinho que já existe ou trocá-lo por esta caçamba.
+  Future<void> _resolverConflitoDeFornecedor(Cacamba cacamba) async {
+    final escolha = await showDialog<_SaidaDoConflito>(
+      context: context,
+      builder: (_) => const _ConflitoDeFornecedorDialog(),
+    );
+
+    if (!mounted || escolha == null) return;
+
+    if (escolha == _SaidaDoConflito.verCarrinho) {
+      _abrirCarrinho();
+      return;
+    }
+
+    setState(() => _adicionando = true);
+
+    try {
+      await ref.read(carrinhoRepositoryProvider).limpar();
+      await _adicionar(cacamba);
+
+      if (!mounted) return;
+      _abrirCarrinho();
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      showApiError(context, error);
+      // O carrinho pode ter sido esvaziado mesmo se a inclusão falhou.
+      ref.invalidate(carrinhoProvider);
+    } finally {
+      if (mounted) setState(() => _adicionando = false);
+    }
+  }
+
   void _abrirCarrinho() {
     // Se já houver um carrinho aberto mais atrás na pilha, ele recarrega.
     ref.invalidate(carrinhoProvider);
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ResumoPedidoPage()));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        settings: const RouteSettings(name: AppRoutes.cart),
+        builder: (_) => const ResumoPedidoPage(),
+      ),
+    );
+  }
+}
+
+enum _SaidaDoConflito { verCarrinho, trocar }
+
+class _ConflitoDeFornecedorDialog extends StatelessWidget {
+  const _ConflitoDeFornecedorDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final navigator = Navigator.of(context);
+
+    return AlertDialog(
+      title: const Text('Seu carrinho tem caçambas de outro fornecedor'),
+      content: const Text(
+        'Cada pedido é feito com um fornecedor só. Você pode concluir o '
+        'pedido que já está no carrinho ou trocar: os itens atuais saem e '
+        'esta caçamba entra no lugar.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => navigator.pop(),
+          child: const Text('Cancelar'),
+        ),
+        OutlinedButton(
+          onPressed: () => navigator.pop(_SaidaDoConflito.verCarrinho),
+          style: OutlinedButton.styleFrom(foregroundColor: AppColors.green),
+          child: const Text('Ver meu carrinho'),
+        ),
+        ElevatedButton(
+          onPressed: () => navigator.pop(_SaidaDoConflito.trocar),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.green,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Trocar por esta'),
+        ),
+      ],
+    );
   }
 }
 

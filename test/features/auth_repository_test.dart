@@ -172,6 +172,105 @@ void main() {
     );
   });
 
+  group('recuperação de senha', () {
+    test('pede o código por e-mail, sem mandar o token', () async {
+      storage.accessToken = 'token-antigo';
+      final adapter = FakeApiAdapter((request) {
+        expect(request.path, '/auth/forgot-password');
+        expect(bearer(request), isNull);
+        expect(sentBody(request), {
+          'identifier': 'maria@reformas.com',
+          'channel': 'EMAIL',
+        });
+        return const FakeResponse(200, {
+          'success': true,
+          'message': 'Se os dados estiverem cadastrados, você receberá um código de recuperação.',
+          'data': {
+            'request_id': '0b1e3c7a-9f0d-4f3e-8a55-2f6c1d9e4b21',
+            'destination_masked': 'ma***@reformas.com',
+            'development_code': '482913',
+          },
+        });
+      });
+
+      final pedido = await repositoryWith(adapter)
+          .solicitarRecuperacaoSenha(' Maria@Reformas.com ');
+
+      expect(pedido.requestId, '0b1e3c7a-9f0d-4f3e-8a55-2f6c1d9e4b21');
+      expect(pedido.destinoMascarado, 'ma***@reformas.com');
+      expect(pedido.codigoDeTeste, '482913');
+    });
+
+    test('sem o modo de teste, o código não vem na resposta', () async {
+      final adapter = FakeApiAdapter(
+        (_) => const FakeResponse(200, {
+          'success': true,
+          'data': {
+            'request_id': 'req-1',
+            'destination_masked': 'ma***@reformas.com',
+          },
+        }),
+      );
+
+      final pedido = await repositoryWith(adapter)
+          .solicitarRecuperacaoSenha('maria@reformas.com');
+
+      expect(pedido.codigoDeTeste, isNull);
+    });
+
+    test('redefine a senha com o pedido e o código', () async {
+      final adapter = FakeApiAdapter((request) {
+        expect(request.path, '/auth/reset-password');
+        expect(bearer(request), isNull);
+        expect(sentBody(request), {
+          'request_id': 'req-1',
+          'code': '482913',
+          'nova_senha': 'NovaSenha1',
+        });
+        return const FakeResponse(200, {
+          'success': true,
+          'message': 'Senha atualizada com sucesso.',
+          'data': null,
+        });
+      });
+
+      await repositoryWith(adapter).redefinirSenha(
+        requestId: 'req-1',
+        codigo: ' 482913 ',
+        novaSenha: 'NovaSenha1',
+      );
+
+      expect(adapter.paths, ['POST /auth/reset-password']);
+    });
+
+    test('código inválido vira ApiException com o código do erro', () async {
+      final adapter = FakeApiAdapter(
+        (_) => const FakeResponse(400, {
+          'success': false,
+          'message': 'Código inválido, expirado ou já utilizado.',
+          'code': 'INVALID_RECOVERY_CODE',
+        }),
+      );
+
+      await expectLater(
+        repositoryWith(adapter).redefinirSenha(
+          requestId: 'req-1',
+          codigo: '000000',
+          novaSenha: 'NovaSenha1',
+        ),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.code, 'code', 'INVALID_RECOVERY_CODE')
+              .having(
+                (e) => e.message,
+                'message',
+                'Código inválido, expirado ou já utilizado.',
+              ),
+        ),
+      );
+    });
+  });
+
   group('logout', () {
     test('revoga na API e limpa os tokens', () async {
       storage

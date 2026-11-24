@@ -1,27 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../features/auth/data/sessao_provider.dart';
 import '../navigation/app_routes.dart';
 import '../theme/app_colors.dart';
 
-class AppLogo extends StatelessWidget {
+/// Logo do app. Tocar nele leva ao início do perfil logado (o painel do
+/// fornecedor ou do admin, ou a página inicial do cliente).
+class AppLogo extends ConsumerWidget {
   final VoidCallback? onTap;
 
   const AppLogo({super.key, this.onTap});
 
-  void _goHome(BuildContext context) {
+  Future<void> _goHome(BuildContext context, WidgetRef ref) async {
+    // Espera a sessão carregar: lida antes disso, viria vazia e levaria o
+    // fornecedor ou o admin para o início do cliente.
+    String inicio;
+    try {
+      final usuario = await ref.read(sessaoProvider.future);
+      inicio = AppRoutes.inicioDoPerfil(usuario?.tipoPerfil);
+    } catch (_) {
+      // Sem conseguir checar a sessão, trata como deslogado.
+      inicio = AppRoutes.home;
+    }
+
+    if (!context.mounted) return;
+
     final currentRoute = ModalRoute.of(context)?.settings.name;
 
-    if (currentRoute == AppRoutes.home) {
+    if (currentRoute == inicio) {
       return;
     }
 
-    Navigator.of(context)
-        .pushNamedAndRemoveUntil(AppRoutes.home, (route) => false);
+    Navigator.of(context).pushNamedAndRemoveUntil(inicio, (route) => false);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Align(
       alignment: Alignment.centerLeft,
       child: Tooltip(
@@ -31,7 +47,7 @@ class AppLogo extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: onTap ?? () => _goHome(context),
+            onTap: onTap ?? () => _goHome(context, ref),
             hoverColor: AppColors.green.withValues(alpha: 0.08),
             splashColor: AppColors.green.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(8),

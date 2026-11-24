@@ -96,6 +96,14 @@ void main() {
 
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
+    expect(
+      _temFoco(tester, find.text('Esqueci minha senha')),
+      isTrue,
+      reason: 'esqueci minha senha',
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
     expect(_temFoco(tester, find.text('ENTRAR')), isTrue, reason: 'ENTRAR');
 
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);

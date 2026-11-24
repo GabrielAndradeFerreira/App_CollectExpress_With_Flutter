@@ -109,7 +109,21 @@ class _AdminLoginPageState extends ConsumerState<AdminLoginPage> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 4),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _loading ? null : _openForgotPassword,
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.green,
+                              ),
+                              child: const Text(
+                                'Esqueci minha senha',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
                           SizedBox(
                             width: double.infinity,
                             height: 56,
@@ -172,6 +186,20 @@ class _AdminLoginPageState extends ConsumerState<AdminLoginPage> {
         ),
       ),
     );
+  }
+
+  /// Leva o e-mail já digitado e, na volta, preenche o e-mail da conta
+  /// que trocou a senha.
+  Future<void> _openForgotPassword() async {
+    final email = await Navigator.of(context).pushNamed(
+      AppRoutes.forgotPassword,
+      arguments: _emailController.text.trim(),
+    );
+
+    if (!mounted || email is! String || email.isEmpty) return;
+
+    _emailController.text = email;
+    _passwordController.clear();
   }
 
   Widget _fieldLabel(String text) {

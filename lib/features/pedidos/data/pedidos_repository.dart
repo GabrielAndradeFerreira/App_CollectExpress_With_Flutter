@@ -27,7 +27,8 @@ class PedidosRepository {
   /// A resposta não traz os itens; use [detalhe] para vê-los.
   ///
   /// O pedido exige o aceite dos termos e a assinatura desenhada pelo
-  /// cliente ([assinaturaBase64]: PNG em base64). A API gera o contrato.
+  /// cliente ([assinaturaBase64]: PNG em base64, sem prefixo `data:`). A API
+  /// gera o contrato em PDF e o envia ao cliente e ao caçambeiro.
   Future<Aluguel> checkout({
     required String enderecoId,
     required DateTime dataInicio,

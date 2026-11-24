@@ -97,7 +97,10 @@ class _ErrorViewState extends State<ErrorView> {
           const SizedBox(height: 16),
           if (_semSessao)
             ElevatedButton(
-              onPressed: () => Navigator.of(context).pushNamed(AppRoutes.login),
+              // Depois de entrar, o cliente volta para esta tela, que recarrega.
+              onPressed: () => Navigator.of(
+                context,
+              ).pushNamed(AppRoutes.login, arguments: AppRoutes.voltarAoEntrar),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.green,
                 foregroundColor: Colors.white,

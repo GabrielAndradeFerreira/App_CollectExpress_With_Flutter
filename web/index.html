@@ -31,6 +31,23 @@
 
   <title>app_collect_express_with_flutter</title>
   <link rel="manifest" href="manifest.json">
+  <!--
+    Sem cache da aplicacao: remove service workers e caches registrados por
+    versoes anteriores (o Flutter web registrava um service worker que
+    guardava os arquivos e mantinha telas antigas no navegador).
+  -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        regs.forEach(function (r) { r.unregister(); });
+      });
+    }
+    if (window.caches) {
+      caches.keys().then(function (keys) {
+        keys.forEach(function (k) { caches.delete(k); });
+      });
+    }
+  </script>
 </head>
 <body>
   <!--
@@ -41,6 +58,6 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="flutter_bootstrap.js?v=20261124" async></script>
 </body>
 </html>

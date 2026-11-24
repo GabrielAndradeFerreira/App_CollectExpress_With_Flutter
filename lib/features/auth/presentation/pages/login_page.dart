@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_logo.dart';
 
-import '../../../../core/models/enums.dart';
 import '../../../../core/models/usuario.dart';
 import '../../../../core/navigation/app_routes.dart';
 import '../../../../core/network/api_exception.dart';
@@ -103,7 +102,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                         validator: _validatePassword,
                       ),
-                      const SizedBox(height: 36),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _isLoading ? null : _openForgotPassword,
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF267A2D),
+                          ),
+                          child: const Text(
+                            'Esqueci minha senha',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
                         height: 57,
@@ -310,23 +323,40 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
   }
 
-  /// O cliente volta para onde estava (ex.: o carrinho, quando o login foi
-  /// pedido no meio de uma ação). Fornecedor e admin vão para o painel.
+  /// Cada perfil vai para o seu início, e as telas de trás saem da pilha
+  /// (inclusive outro login que tenha ficado lá).
+  ///
+  /// A exceção é o cliente que entrou no meio de uma ação (o login foi
+  /// aberto com [AppRoutes.voltarAoEntrar]): ele volta para a tela que pediu
+  /// o login, e a ação continua.
   void _irParaAreaDoPerfil(Usuario usuario) {
     final navigator = Navigator.of(context);
+    final voltarAoEntrar =
+        ModalRoute.of(context)?.settings.arguments == AppRoutes.voltarAoEntrar;
 
-    if (usuario.isConsumidor && navigator.canPop()) {
-      navigator.pop();
+    if (usuario.isConsumidor && voltarAoEntrar && navigator.canPop()) {
+      navigator.pop(true);
       return;
     }
 
-    final rota = switch (usuario.tipoPerfil) {
-      TipoPerfil.cacambeiro => AppRoutes.supplierHome,
-      TipoPerfil.admin => AppRoutes.adminHome,
-      TipoPerfil.parceiro => AppRoutes.recyclingHome,
-      _ => AppRoutes.home,
-    };
-    navigator.pushNamedAndRemoveUntil(rota, (_) => false);
+    navigator.pushNamedAndRemoveUntil(
+      AppRoutes.inicioDoPerfil(usuario.tipoPerfil),
+      (_) => false,
+    );
+  }
+
+  /// Leva o e-mail já digitado e, na volta, preenche o e-mail da conta
+  /// que trocou a senha.
+  Future<void> _openForgotPassword() async {
+    final email = await Navigator.of(context).pushNamed(
+      AppRoutes.forgotPassword,
+      arguments: _emailController.text.trim(),
+    );
+
+    if (!mounted || email is! String || email.isEmpty) return;
+
+    _emailController.text = email;
+    _passwordController.clear();
   }
 
   void _openRegistration() {

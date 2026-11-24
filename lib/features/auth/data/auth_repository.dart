@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/json_parsing.dart';
 import '../../../core/models/reciclagem.dart';
+import '../../../core/models/recuperacao_senha.dart';
 import '../../../core/models/usuario.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
@@ -119,6 +120,36 @@ class AuthRepository {
       }
       rethrow;
     }
+  }
+
+  /// Pede o código de 6 dígitos para criar uma senha nova. Por enquanto a
+  /// API só envia por e-mail.
+  Future<PedidoRecuperacaoSenha> solicitarRecuperacaoSenha(String email) async {
+    final data = await _api.post(
+      '/auth/forgot-password',
+      auth: false,
+      data: {'identifier': email.trim().toLowerCase(), 'channel': 'EMAIL'},
+    );
+
+    return PedidoRecuperacaoSenha.fromJson(parseMap(data) ?? const {});
+  }
+
+  /// Troca a senha com o código recebido. A API encerra todas as sessões
+  /// abertas da conta.
+  Future<void> redefinirSenha({
+    required String requestId,
+    required String codigo,
+    required String novaSenha,
+  }) async {
+    await _api.post(
+      '/auth/reset-password',
+      auth: false,
+      data: {
+        'request_id': requestId,
+        'code': codigo.trim(),
+        'nova_senha': novaSenha,
+      },
+    );
   }
 
   Future<Usuario> perfil() async {

@@ -20,7 +20,13 @@ Future<bool> garantirLogin(BuildContext context, WidgetRef ref) async {
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(content: Text('Entre na sua conta para continuar.')),
   );
-  await Navigator.of(context).pushNamed(AppRoutes.login);
+  final voltou = await Navigator.of(context)
+      .pushNamed(AppRoutes.login, arguments: AppRoutes.voltarAoEntrar);
+
+  // O login devolve `true` só quando volta para esta tela com a conta já
+  // aberta. Se ele levou para outro lugar (ex.: o painel do fornecedor),
+  // esta tela foi fechada e a ação não continua.
+  if (voltou != true || !context.mounted) return false;
 
   return ref.read(sessaoProvider).value != null;
 }

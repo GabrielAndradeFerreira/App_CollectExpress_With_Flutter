@@ -5,6 +5,7 @@ import 'package:app_collect_express_with_flutter/core/network/api_providers.dart
 import 'package:app_collect_express_with_flutter/features/admin/presentation/pages/admin_geral_page.dart';
 import 'package:app_collect_express_with_flutter/features/cacambas/presentation/pages/cacamba_details_page.dart';
 import 'package:app_collect_express_with_flutter/features/cacambas/presentation/pages/cacambas_page.dart';
+import 'package:app_collect_express_with_flutter/features/pedidos/presentation/pages/resumo_pedido_page.dart';
 import 'package:dio/dio.dart' show RequestOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -216,6 +217,88 @@ void main() {
         'cacamba_id': 'c1',
         'quantidade': 2,
         'dias_aluguel': 3,
+      });
+    });
+
+    group('carrinho de outro fornecedor', () {
+      /// A API recusa a caçamba até o carrinho ser esvaziado.
+      FakeResponse Function(RequestOptions) comConflito() {
+        var esvaziou = false;
+        return (request) {
+          if (request.method == 'DELETE' && request.path == '/carrinho') {
+            esvaziou = true;
+            return const FakeResponse(200, {'success': true, 'data': null});
+          }
+          if (request.path == '/carrinho/itens' && !esvaziou) {
+            return const FakeResponse(409, {
+              'success': false,
+              'message':
+                  'Todos os itens do carrinho devem pertencer ao mesmo '
+                  'fornecedor. Limpe o carrinho para escolher outro fornecedor.',
+              'code': 'CART_SUPPLIER_CONFLICT',
+            });
+          }
+          return detalhe(request);
+        };
+      }
+
+      Future<FakeApiAdapter> tentarAdicionar(WidgetTester tester) async {
+        final adapter = await _abrir(
+          tester,
+          const CacambaDetailsPage(cacambaId: 'c1'),
+          comConflito(),
+          storage: InMemoryTokenStorage(accessToken: 'jwt'),
+        );
+        await tester.tap(find.text('Adicionar ao Carrinho'));
+        await tester.pumpAndSettle();
+        return adapter;
+      }
+
+      testWidgets('oferece abrir o carrinho para concluir o pedido', (
+        tester,
+      ) async {
+        final adapter = await tentarAdicionar(tester);
+
+        expect(
+          find.text('Seu carrinho tem caçambas de outro fornecedor'),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.text('Ver meu carrinho'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ResumoPedidoPage), findsOneWidget);
+        expect(adapter.paths, isNot(contains('DELETE /carrinho')));
+      });
+
+      testWidgets('trocar esvazia o carrinho e adiciona esta caçamba', (
+        tester,
+      ) async {
+        final adapter = await tentarAdicionar(tester);
+
+        await tester.tap(find.text('Trocar por esta'));
+        await tester.pumpAndSettle();
+
+        final escritas = adapter.paths
+            .where((p) => p.startsWith('POST') || p.startsWith('DELETE'))
+            .toList();
+        expect(escritas, [
+          'POST /carrinho/itens',
+          'DELETE /carrinho',
+          'POST /carrinho/itens',
+        ]);
+        expect(find.byType(ResumoPedidoPage), findsOneWidget);
+      });
+
+      testWidgets('cancelar não mexe no carrinho', (tester) async {
+        final adapter = await tentarAdicionar(tester);
+
+        await tester.tap(find.text('Cancelar'));
+        await tester.pumpAndSettle();
+
+        expect(adapter.paths, isNot(contains('DELETE /carrinho')));
+        expect(find.byType(ResumoPedidoPage), findsNothing);
+        expect(find.text('Adicionar ao Carrinho'), findsOneWidget);
       });
     });
   });
